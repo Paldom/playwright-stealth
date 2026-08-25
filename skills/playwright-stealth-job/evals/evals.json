@@ -1,0 +1,78 @@
+{
+  "skill": "playwright-stealth-job",
+  "cases": [
+    { "type": "should_trigger", "prompt": "save this as a repeatable job so we don't pay an LLM every month" },
+    { "type": "should_trigger", "prompt": "record the invoice pull and replay it next time" },
+    { "type": "should_trigger", "prompt": "run the acme-portal invoices job" },
+    { "type": "should_trigger", "prompt": "replay last month's saved browsing job" },
+    { "type": "should_trigger", "prompt": "the invoices job broke, fix the selector" },
+    { "type": "should_trigger", "prompt": "make this browser flow repeatable and cheap to rerun" },
+    { "type": "should_trigger", "prompt": "what stealth jobs do i have saved?" },
+    { "type": "should_trigger", "prompt": "why did last night's run fail? show me the trace" },
+    { "type": "should_trigger", "prompt": "turn what you just did in the browser into a script i can schedule" },
+    { "type": "should_trigger", "prompt": "re-record the vendor login flow, the page changed" },
+    { "type": "should_trigger", "prompt": "check my job file doesn't break the humanize rules" },
+
+    { "type": "should_not_trigger", "prompt": "install cloakbrowser on this machine" },
+    { "type": "should_not_trigger", "prompt": "create a stealth identity for my reddit account" },
+    { "type": "should_not_trigger", "prompt": "add a proxy to the eu-shop identity" },
+    { "type": "should_not_trigger", "prompt": "open the stealth browser and have a look at this page" },
+    { "type": "should_not_trigger", "prompt": "log into the portal by hand so the agent can reuse it" },
+    { "type": "should_not_trigger", "prompt": "run the canary against my profile" },
+    { "type": "should_not_trigger", "prompt": "write a playwright test for the login form" },
+    { "type": "should_not_trigger", "prompt": "set up a cron job to back up my database" },
+    { "type": "should_not_trigger", "prompt": "record a demo video of the app" },
+    { "type": "should_not_trigger", "prompt": "my github actions workflow is failing" },
+    { "type": "should_not_trigger", "prompt": "scrape this page once with requests" },
+
+    {
+      "type": "quality",
+      "prompt": "I pull the invoice list from the acme portal every month by hand. Make it a repeatable job.",
+      "expected_behavior": [
+        "scaffolds a job file from the template under jobs/<identity>/ and drives the browser once to author the real steps, rather than inventing selectors it has not seen",
+        "uses role or label based locators through the patched Locator API and never query_selector, wait_for_timeout, or JS scrollTo",
+        "declares a session assertion and at least one outcome assertion that would fail if the site silently changed",
+        "runs the linter and a first replay, and reports the run directory and the recorded seed",
+        "does not put credentials, cookies, or extracted invoice data into the committed job file"
+      ]
+    },
+    {
+      "type": "quality",
+      "prompt": "the acme-portal invoices job failed last night",
+      "expected_behavior": [
+        "reads the failed run's manifest, screenshot and DOM slice from the run directory instead of guessing",
+        "distinguishes an expired session from a selector miss, and treats session expiry as the more likely cause",
+        "repairs only the failing step and leaves the rest of the job untouched, presenting it as a reviewable diff",
+        "re-runs the job to prove the repair, and never edits an assertion to make the run pass"
+      ]
+    },
+    {
+      "type": "quality",
+      "prompt": "this job needs my vendor password on the login step",
+      "expected_behavior": [
+        "points out that the persistent profile normally keeps the session, so the job should assert logged-in rather than log in on every run",
+        "stores a reference by name and resolves it from the environment at runtime, never writing the value into the job file",
+        "fails fast and names the missing variable when the secret is unset, instead of typing an empty string into a password field",
+        "notes that run artefacts such as screenshots and traces can capture credentials and are gitignored and pruned"
+      ]
+    },
+    {
+      "type": "quality",
+      "prompt": "does replaying the same script every week make me easier to detect?",
+      "expected_behavior": [
+        "confirms the risk is real and is about cross-run correlation rather than any single action, since humanize only varies things within a run",
+        "recommends jittering the gaps and the schedule while keeping step order and selectors fixed so failures stay diff-able",
+        "explains that the run seed is recorded so any past run can be reproduced exactly for debugging without making production runs identical"
+      ]
+    },
+    {
+      "type": "quality",
+      "prompt": "should I record the quarterly compliance download as a job too?",
+      "expected_behavior": [
+        "questions whether recording pays off for a job that runs rarely on a site that may churn between runs",
+        "explains the trade being made, that steady per-run LLM cost is exchanged for spiky breakage cost at an awkward moment",
+        "recommends recording frequent jobs and leaving rare ones to the agent, rather than recording everything by default"
+      ]
+    }
+  ]
+}

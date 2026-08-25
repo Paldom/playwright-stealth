@@ -1,0 +1,78 @@
+{
+  "skill": "playwright-stealth",
+  "cases": [
+    { "type": "should_trigger", "prompt": "open the stealth browser and go to https://example.com" },
+    { "type": "should_trigger", "prompt": "log in to the acme portal like a human and pull my invoice list" },
+    { "type": "should_trigger", "prompt": "resume my stealth session" },
+    { "type": "should_trigger", "prompt": "create a new stealth identity for my reddit account" },
+    { "type": "should_trigger", "prompt": "browse this site stealthily and tell me what's on the pricing page" },
+    { "type": "should_trigger", "prompt": "i logged in by hand yesterday - reuse that session and check for new messages" },
+    { "type": "should_trigger", "prompt": "start cloakbrowser on the acme-portal profile" },
+    { "type": "should_trigger", "prompt": "automate this signup flow without getting flagged as a bot" },
+    { "type": "should_trigger", "prompt": "check my stealth profile isnt leaking automation tells" },
+    { "type": "should_trigger", "prompt": "point the eu identity at a proxy and relaunch it" },
+    { "type": "should_trigger", "prompt": "same browser fingerprint as last time please, don't roll a new one" },
+
+    { "type": "should_not_trigger", "prompt": "install cloakbrowser on this machine" },
+    { "type": "should_not_trigger", "prompt": "the cloakbrowser binary download failed halfway" },
+    { "type": "should_not_trigger", "prompt": "add my cloakbrowser license key" },
+    { "type": "should_not_trigger", "prompt": "python -m cloakbrowser install is erroring out" },
+    { "type": "should_not_trigger", "prompt": "write a playwright test for the login form" },
+    { "type": "should_not_trigger", "prompt": "scrape this page with requests and beautifulsoup" },
+    { "type": "should_not_trigger", "prompt": "open chrome and go to gmail" },
+    { "type": "should_not_trigger", "prompt": "why is my selenium script so slow?" },
+    { "type": "should_not_trigger", "prompt": "take a screenshot of example.com for the README" },
+    { "type": "should_not_trigger", "prompt": "configure an https proxy for npm and curl" },
+    { "type": "should_not_trigger", "prompt": "review my .gitignore file" },
+
+    {
+      "type": "quality",
+      "prompt": "open the stealth browser on a new identity called acme-portal and go to https://example.com",
+      "expected_behavior": [
+        "scaffolds the identity with the init step first, which rolls a seed and confirms .stealth/ is gitignored before any browser starts",
+        "launches headful with humanize enabled and the identity's pinned fingerprint seed, never headless and never with a fresh random seed",
+        "runs the canary and reports its result before treating the session as usable",
+        "tells the user the profile directory holds live credentials and must never be committed or shared"
+      ]
+    },
+    {
+      "type": "quality",
+      "prompt": "i want to log into my account by hand once and then have you reuse that session in later runs",
+      "expected_behavior": [
+        "launches headful on a named identity, hands the window over for the manual login, and closes cleanly so the profile is written",
+        "explains that resuming is simply relaunching with the same user-data directory and the same seed, with no cookie export or storage_state juggling",
+        "warns that the egress IP must stay the same across the login and every later run, and that one identity maps to one account",
+        "does not attempt to enter the user's credentials itself"
+      ]
+    },
+    {
+      "type": "quality",
+      "prompt": "the canary is failing on my profile, what's wrong?",
+      "expected_behavior": [
+        "reads the canary scorecard and separates required failures from advisory warnings instead of treating every line as fatal",
+        "maps the specific failing check to its cause using the skill's failure-to-fix table",
+        "recognises that a canvas hash differing from the baseline after a browser upgrade means a reviewed re-baseline, not a silent overwrite",
+        "does not disable, weaken, or edit the canary to make it pass"
+      ]
+    },
+    {
+      "type": "quality",
+      "prompt": "set up a second stealth identity that egresses from a german residential IP",
+      "expected_behavior": [
+        "creates a separate identity directory with its own seed rather than reusing or copying the existing one",
+        "preflights the proxy and confirms the exit IP, timezone and locale it would apply before binding it to the identity",
+        "takes the proxy password from the environment and never writes it into profile.toml or a shell argument",
+        "recommends a static or ISP proxy that keeps one IP for the identity, and rules out rotating or datacentre proxies for a logged-in session"
+      ]
+    },
+    {
+      "type": "quality",
+      "prompt": "run two tasks at once against the acme-portal profile",
+      "expected_behavior": [
+        "refuses to open the same user-data directory from two processes and explains that a Chromium profile is single-writer",
+        "offers a separate identity as the way to get concurrency instead of forcing the lock",
+        "does not delete Chromium's own Singleton lock files while a browser might still be running"
+      ]
+    }
+  ]
+}

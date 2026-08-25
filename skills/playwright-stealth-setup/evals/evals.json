@@ -1,0 +1,68 @@
+{
+  "skill": "playwright-stealth-setup",
+  "cases": [
+    { "type": "should_trigger", "prompt": "set up cloakbrowser" },
+    { "type": "should_trigger", "prompt": "install the stealth browser toolchain on this machine" },
+    { "type": "should_trigger", "prompt": "cloakbrowser info says the binary isn't installed — fix it" },
+    { "type": "should_trigger", "prompt": "python -m cloakbrowser install keeps failing" },
+    { "type": "should_trigger", "prompt": "get the stealth browsing environment ready before we start" },
+    { "type": "should_trigger", "prompt": "i want to add my cloakbrowser license key so we get the newer binary" },
+    { "type": "should_trigger", "prompt": "stealth chromium won't launch, macos says the app is damaged" },
+    { "type": "should_trigger", "prompt": "cloakbrowser isnt importable" },
+    { "type": "should_trigger", "prompt": "fresh laptop. what has to be installed before I can use the stealth browser?" },
+    { "type": "should_trigger", "prompt": "verify the stealth browser install is actually working" },
+    { "type": "should_trigger", "prompt": "which chromium version and license tier will actually launch here?" },
+
+    { "type": "should_not_trigger", "prompt": "open the stealth browser and go to example.com" },
+    { "type": "should_not_trigger", "prompt": "resume my stealth session for acme-portal" },
+    { "type": "should_not_trigger", "prompt": "run the canary against my acme-portal profile" },
+    { "type": "should_not_trigger", "prompt": "create a new stealth identity for my github account" },
+    { "type": "should_not_trigger", "prompt": "log into the portal by hand so the agent can reuse the session later" },
+    { "type": "should_not_trigger", "prompt": "which residential proxy provider should I buy for a long-lived login?" },
+    { "type": "should_not_trigger", "prompt": "install playwright and its browsers" },
+    { "type": "should_not_trigger", "prompt": "set up a python virtualenv for this project" },
+    { "type": "should_not_trigger", "prompt": "pip install requests" },
+    { "type": "should_not_trigger", "prompt": "why is my playwright test failing in CI?" },
+    { "type": "should_not_trigger", "prompt": "my npm install is broken, fix the lockfile" },
+
+    {
+      "type": "quality",
+      "prompt": "set up the stealth browser on this machine",
+      "expected_behavior": [
+        "runs the bundled setup script in probe mode first and reports what is already present before changing anything",
+        "installs cloakbrowser with the geoip extra and downloads the patched Chromium binary only for components reported missing",
+        "reports the Chromium version and license tier that will actually launch, read from cloakbrowser info --json rather than from documentation",
+        "states the trust boundary plainly: the binary is closed-source, runs with the Chromium sandbox disabled, and the free tier trails current Chrome",
+        "does not launch a browsing session or create any identity profile"
+      ]
+    },
+    {
+      "type": "quality",
+      "prompt": "cloakbrowser info reports the binary is not installed and the launch test fails",
+      "expected_behavior": [
+        "re-runs the setup script and reads the machine-readable STATUS lines instead of guessing at the cause",
+        "distinguishes a missing binary from a quarantined binary and applies the macOS unquarantine step when the symptom matches",
+        "reports the resolved binary path and version after the fix, and does not claim success without a passing launch test",
+        "never edits the skill scripts or fakes a passing result to get past the gate"
+      ]
+    },
+    {
+      "type": "quality",
+      "prompt": "add my cloakbrowser license key",
+      "expected_behavior": [
+        "keeps the key out of the repository and out of the shell command line, using cloakbrowser login or the CLOAKBROWSER_LICENSE_KEY environment variable",
+        "re-runs the diagnostic afterwards and reports the license tier and the binary version that changed as a result",
+        "explains that the wrapper is MIT but the binary is separately licensed, without repeating vendor pass-rate marketing as fact"
+      ]
+    },
+    {
+      "type": "quality",
+      "prompt": "is my python new enough for this stealth toolkit?",
+      "expected_behavior": [
+        "checks the running interpreter against the Python 3.11 minimum and explains that the profile format is read with the standard-library tomllib",
+        "reports the actual version found rather than assuming",
+        "does not install a third-party TOML backport as a workaround"
+      ]
+    }
+  ]
+}

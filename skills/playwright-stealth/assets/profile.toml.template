@@ -1,0 +1,48 @@
+# .stealth/<identity>/profile.toml — settings for ONE browsing identity. Gitignored.
+#
+# Created by `launch.py --identity <name> --init`. Hand-edit, then relaunch — the skill
+# only ever reads this file. Defaults here are the strongest anti-recognition settings,
+# not the fastest ones; opt out deliberately.
+#
+# One identity per account. Never share a seed or a user-data/ directory between two
+# accounts: same fingerprint plus same IP links them permanently.
+
+[browser]
+headless     = false        # ALWAYS false. Headless leaks GPU, display and timing signals
+                            # even with the C++ patches applied.
+humanize     = true         # Bézier cursor paths, per-character typing, human scroll cadence.
+                            # Covers mouse, keyboard AND scroll.
+human_preset = "careful"    # "careful" (slower, deliberate, idle micro-movements) or
+                            # "default" (normal speed). "" = the wrapper's own default.
+
+[identity]
+seed = 0                    # --fingerprint=<seed>. 0 = unset, and --init refuses to leave
+                            # it that way. With no seed the binary rolls a NEW random device
+                            # fingerprint every launch — a new device every session.
+platform = ""               # "" = the wrapper's native default (macos on a Mac, windows on
+                            # Linux). Only set this if you accept the coherence risk: a
+                            # Windows claim over Mac font metrics is a seam, not a disguise.
+storage_quota_mb = 5000     # --fingerprint-storage-quota. The binary normalizes the quota
+                            # whenever a seed is set, and some detectors read the normalized
+                            # value as incognito. 0 = leave the binary's default.
+
+[network]
+proxy_server   = ""         # "" = use this machine's own connection. That is the RECOMMENDED
+                            # default: a home or office line is a genuine residential IP with
+                            # real ISP reputation, and no purchased proxy beats it. Otherwise
+                            # "http://host:port" or "socks5://host:port" — CONNECT-only, never
+                            # a TLS-terminating proxy (it destroys the real Chrome JA3/JA4).
+proxy_username = ""         # Password: export STEALTH_PROXY_PASSWORD. Never write it here.
+proxy_bypass   = ""         # optional, e.g. ".internal.example.com"
+geoip          = true       # Derive timezone + locale from the proxy exit IP. Applies only
+                            # when proxy_server is set; with no proxy nothing is looked up
+                            # and no third-party call is made.
+timezone       = ""         # e.g. "America/New_York". Sets a binary flag, not CDP emulation,
+                            # and OVERRIDES geoip. Set this if your machine's timezone does
+                            # not match its public IP (VPN, travel).
+locale         = ""         # e.g. "en-US". Binary flag, also overrides geoip.
+webrtc_ip      = "auto"     # --fingerprint-webrtc-ip. "auto" resolves the proxy exit IP so
+                            # WebRTC cannot leak your real one. Ignored with no proxy.
+
+[verify]
+canary_before_task = true   # Run the canary before handing the session to a task.

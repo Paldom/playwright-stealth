@@ -1,0 +1,81 @@
+{
+  "skill": "playwright-stealth-identity",
+  "cases": [
+    { "type": "should_trigger", "prompt": "create a stealth identity for my reddit account" },
+    { "type": "should_trigger", "prompt": "set up a stealth profile for this project" },
+    { "type": "should_trigger", "prompt": "make me a new browser identity, defaults are fine" },
+    { "type": "should_trigger", "prompt": "i need a second identity that doesn't share an IP with the first" },
+    { "type": "should_trigger", "prompt": "bind a static ISP proxy to the acme-portal identity" },
+    { "type": "should_trigger", "prompt": "the eu identity has the wrong timezone, fix it" },
+    { "type": "should_trigger", "prompt": "add a proxy to my stealth profile" },
+    { "type": "should_trigger", "prompt": "set up a profile for my github account with a german IP" },
+    { "type": "should_trigger", "prompt": "configure a stealth identity, just use the defaults" },
+    { "type": "should_trigger", "prompt": "new account, new identity please" },
+    { "type": "should_trigger", "prompt": "reconfigure acme-portal to use en-GB" },
+
+    { "type": "should_not_trigger", "prompt": "set up cloakbrowser on this machine" },
+    { "type": "should_not_trigger", "prompt": "install cloakbrowser" },
+    { "type": "should_not_trigger", "prompt": "the cloakbrowser binary download failed halfway" },
+    { "type": "should_not_trigger", "prompt": "open the stealth browser and go to example.com" },
+    { "type": "should_not_trigger", "prompt": "resume my stealth session" },
+    { "type": "should_not_trigger", "prompt": "log in to the acme portal like a human and pull my invoices" },
+    { "type": "should_not_trigger", "prompt": "run the canary against acme-portal" },
+    { "type": "should_not_trigger", "prompt": "which residential proxy provider should I buy?" },
+    { "type": "should_not_trigger", "prompt": "set up a python virtualenv for this project" },
+    { "type": "should_not_trigger", "prompt": "create a git branch for this work" },
+    { "type": "should_not_trigger", "prompt": "configure an https proxy for npm and curl" },
+
+    {
+      "type": "quality",
+      "prompt": "create a stealth identity for my reddit account, defaults are fine",
+      "expected_behavior": [
+        "asks the user no questions at all, because they said defaults are fine",
+        "runs the init command once with a kebab-case identity name and no settings flags",
+        "reports the rolled seed, the identity path, and that .stealth/ is gitignored",
+        "states the assumptions it took (no proxy, headful, humanize careful) and which profile.toml keys would change them",
+        "does not offer or suggest a proxy, because the user never raised one"
+      ]
+    },
+    {
+      "type": "quality",
+      "prompt": "set up a stealth identity that egresses from Germany",
+      "expected_behavior": [
+        "recognises the user raised geography, so a proxy is in scope and worth one question",
+        "preflights the proxy with cloakbrowser info --proxy before writing it into the profile",
+        "passes the proxy, timezone and locale as flags to the init command rather than hand-editing profile.toml",
+        "takes the proxy password from STEALTH_PROXY_PASSWORD and never writes it into the file or a shell argument",
+        "recommends a static or ISP proxy and rules out rotating pools for a logged-in identity"
+      ]
+    },
+    {
+      "type": "quality",
+      "prompt": "the eu-shop identity is reporting a US timezone even though the proxy is in London",
+      "expected_behavior": [
+        "recognises this as retuning an existing identity, not creating a new one, and keeps the existing seed",
+        "sets timezone and locale explicitly so they override the geoip lookup",
+        "verifies the fix with the canary's egress check rather than trusting the profile",
+        "does not roll a new seed or delete and recreate the identity"
+      ]
+    },
+    {
+      "type": "quality",
+      "prompt": "set up identities for my three marketplace accounts",
+      "expected_behavior": [
+        "creates three separate identities with three distinct seeds rather than one shared profile",
+        "explains that a shared seed plus a shared IP links the accounts permanently",
+        "asks at most one batched question covering all three, not one round per account",
+        "hands off to the browsing skill for the manual logins rather than attempting them"
+      ]
+    },
+    {
+      "type": "quality",
+      "prompt": "add an identity called acme-portal",
+      "expected_behavior": [
+        "creates the identity with defaults without interrogating the user about optional settings",
+        "never asks about the fingerprint seed, file permissions, or the gitignore entry, which are not user decisions",
+        "confirms afterwards what was assumed and how to change it",
+        "points at the browsing skill as the next step for the hand-login"
+      ]
+    }
+  ]
+}

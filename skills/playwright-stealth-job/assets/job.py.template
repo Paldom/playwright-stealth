@@ -1,0 +1,60 @@
+"""{{JOB}} — a recorded browsing job for the {{IDENTITY}} identity.
+
+COMMITTED and reviewable. It must stay safe to read in a pull request: no passwords, no
+cookies, no tokens, no extracted data. Secrets come from `h.secret("NAME")`, which reads
+STEALTH_SECRET_NAME from the environment at run time.
+
+Replay it with:
+    python3 "${CLAUDE_SKILL_DIR}/scripts/job.py" --identity {{IDENTITY}} --job {{JOB}} --run
+
+Author it by driving the identity once and writing down what you actually saw. Do not
+invent selectors — a job built from guesses fails on the first real run.
+"""
+
+IDENTITY = "{{IDENTITY}}"
+
+# Navigated before anything else. Deep-link straight to the page you need: every menu you
+# click through is another selector that can break.
+START_URL = "https://example.com/TODO"
+
+# Proof the session is still alive, checked before any step runs. Pick something that only
+# exists when logged in — an account menu, a sign-out link. Session expiry breaks replays
+# far more often than selectors do, and this is what turns that into a clean, early error
+# instead of a confused click on a login wall.
+LOGGED_IN_WHEN = 'role=link[name="Sign out"]'
+
+# Names resolved from the environment, for reference by a reader. Listing them here does
+# not expose anything — the values never enter this file.
+REQUIRES_SECRETS: list[str] = []
+
+
+def run(page, ctx, h):
+    """Drive the task and return whatever the caller should keep.
+
+    page  — a humanized Playwright Page. Prefer role/label locators:
+            page.get_by_role("link", name="Invoices").click()
+            page.get_by_label("Search").fill("2026-08")
+            They are both the durable API and the humanized one — CloakBrowser patches
+            the whole Locator class, so these calls get Bezier cursor paths and
+            per-character typing for free.
+    ctx   — the BrowserContext, for cookies or a second page.
+    h     — h.pause() jittered wait, h.secret("NAME"), h.expect(cond, "why").
+
+    Never: page.query_selector (ElementHandle bypasses humanize), page.wait_for_timeout
+    (emits CDP traffic), JS scrollTo/scrollBy (untrusted scroll is a binary bot tell).
+    Scroll with page.mouse.wheel(0, 600). The linter rejects all of these.
+
+    Return a JSON-serialisable object. It is written to the run directory, which is
+    gitignored — extracted data is output, and output is sensitive.
+    """
+    # TODO: replace with the real steps.
+    page.get_by_role("link", name="TODO").click()
+    h.pause()
+
+    # At least one OUTCOME assertion. Assert on outcomes and identity, never on paths and
+    # positions — "the table has rows" survives a redesign, "this exact URL after step 3"
+    # does not. Without one of these a replay can succeed while the site silently changed.
+    rows = page.get_by_role("row").count()
+    h.expect(rows > 0, "the results table has at least one row")
+
+    return {"rows": rows}

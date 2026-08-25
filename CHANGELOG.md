@@ -1,0 +1,57 @@
+# Changelog
+
+All notable changes to this repository's skills are documented here.
+Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
+versioning: [SemVer](https://semver.org) on the plugin manifest
+(breaking skill-interface change → major, new skill → minor, fix → patch).
+
+## [Unreleased]
+
+### Changed
+- **Identity provisioning moved out of `playwright-stealth` into a new
+  `playwright-stealth-identity` skill.** The parent's description no longer advertises
+  "create a stealth identity" and its body hands off instead of creating; `launch.py`'s
+  "no identity" error now names the skill that does. Split chosen by the owner after an
+  `/advise-max` consultation in which 3 of 4 flagship models argued against it. The dissent
+  and the mitigations are recorded in [docs/skill-split-rationale.md](docs/skill-split-rationale.md);
+  the first-browse regression they predicted is mitigated by the hand-off error message
+  rather than by auto-creation.
+- `references/proxies.md` moved to the identity skill; `references/profile.md` slimmed to
+  layout, locking and driving-from-code, with settings and derivation now authoritative in
+  the identity skill's `references/identity.md`.
+- `launch.py --init` gained typed settings flags (`--proxy`, `--proxy-user`, `--timezone`,
+  `--locale`, `--human-preset`, `--storage-quota-mb`) that substitute into the commented
+  template atomically, preserving comments and their column alignment, and retune an
+  existing identity in place without touching its seed.
+
+### Added
+- `playwright-stealth-job` — records a browsing task as a committed Python job at
+  `jobs/<identity>/<name>.py` and replays it with no model in the loop. `job.py` owns
+  `--new`, `--lint`, `--run`, `--list`. Design settled by an `/advise-max` consultation
+  that split 2–2 between a declarative step schema and sealed Python; resolved for Python
+  by a verified fact both camps guessed at — CloakBrowser patches the whole `Locator`
+  class, so the durable role-based API is also the humanized one. The safety a schema
+  would give by construction comes from an AST lint instead: `wait_for_timeout`,
+  `query_selector`, JS `scrollTo`/`scrollBy` and credential literals are hard errors, and
+  the linter gates every run. `h.pause()` jitters from a per-run seed recorded in the
+  manifest, so production replays vary while `--seed` reproduces any past run exactly.
+  Failed runs keep a screenshot, DOM and trace; successful ones shed the trace and prune.
+- `playwright-stealth-identity` — creates or retunes one identity per account. Interview
+  with a defaults-first skip rule: zero questions when the user says defaults, names no
+  proxy or geography, or the run is non-interactive. Never volunteers a proxy, because the
+  host's own residential IP is the strongest option and offering the choice talks people
+  into a worse one.
+- `playwright-stealth-setup` — idempotent install and verification of the CloakBrowser
+  stealth-Chromium toolchain. Gates on `python -m cloakbrowser info --json` (which exits
+  0 even when nothing is installed, so the script reads the JSON), handles the licence
+  key, clears the macOS Gatekeeper quarantine, and reports the Chromium version and
+  licence tier that will actually launch instead of quoting documentation.
+- `playwright-stealth` — create, resume and drive a pinned stealth identity. Each
+  identity lives in a gitignored `.stealth/<name>/` holding `profile.toml`, `user-data/`
+  and `baseline.json`. `launch.py` owns `--init` (seed roll with collision check,
+  `.gitignore` guard), the single-writer lock, and the `profile.toml` derivation;
+  `canary.py` writes a fingerprint baseline on the first run and diffs against it after,
+  with `--rebaseline` for a reviewed browser upgrade.
+- `docs/setup-prompt.md` — paste-ready goal prompt that orders both skills with a
+  verifier gate on each.
+- Repository scaffolded from the skills template.
