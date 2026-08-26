@@ -1,7 +1,7 @@
 {
   "name": "playwright-stealth",
   "description": "Agent Skills for stealth browser automation with CloakBrowser and Playwright \u2014 a C++-patched Chromium that evades bot detection, driven headful on a persistent profile so hand-made logins survive across agent sessions.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": {
     "name": "Paldom",
     "url": "https://github.com/Paldom"

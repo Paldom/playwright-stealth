@@ -7,6 +7,8 @@ versioning: [SemVer](https://semver.org) on the plugin manifest
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-08-26
+
 ### Fixed
 - **The canary's durable-login signal was false assurance.** Its "marker cookie survived
   the last run" check set its own cookie with an explicit one-year expiry, so it passed by
