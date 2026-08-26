@@ -129,19 +129,18 @@ overrides the automatic lookup and fixes it.
 
 ### Providers
 
-> **Disclosure:** the link marked **(affiliate)** is a referral link — if you sign up
-> through it, this project may earn a commission at no extra cost to you. That is also why
-> it is listed first. **The ordering is not a quality ranking**, and the requirements above
-> apply to linked and unlinked providers alike.
+> **Disclosure:** these are affiliate links — if you sign up through one, this project may
+> earn a commission at no extra cost to you. **The list is not exhaustive and the ordering
+> is not a quality ranking**; the requirements above apply to every provider, linked or not,
+> and where one is worth avoiding that is said plainly regardless of whether the link earns
+> anything. Other capable providers (Decodo, Oxylabs, and more) are compared by measurable
+> properties in the reference below.
 
 | Provider | Product | Shape |
 | --- | --- | --- |
-| [Webshare](https://www.webshare.io/?referral_code=zj5g181wgi7g) **(affiliate)** | Static ISP + datacenter | Cheapest sticker price at volume; free tier gives 10 datacenter IPs. Measured 2026-08-25: a free-tier IP egressed from `AS20738 Heart Internet` — a hosting ASN, so treat the free tier as datacenter, not residential |
-| [Decodo](https://decodo.com/) | Static residential | Value tier; the most consistent organic sentiment on r/proxies |
-| [Oxylabs](https://oxylabs.io/) | Static Residential | 17 countries, SOCKS5/UDP; concurrency drops past 50 GB/IP shared |
-| [Bright Data](https://brightdata.com/) | ISP Proxies | ~700K IPs, most countries; 100 GB/IP fair-use cap |
-| [NodeMaven](https://nodemaven.com/) | Dedicated static ISP | Mid-tier, flat per-IP pricing |
-| [IPRoyal](https://iproyal.com/) | Static residential | Budget; non-expiring traffic |
+| [Webshare](https://www.webshare.io/?referral_code=zj5g181wgi7g) | Static ISP + datacenter | Cheapest sticker price at volume; free tier gives 10 datacenter IPs. Measured 2026-08-25: a free-tier IP egressed from `AS20738 Heart Internet` — a hosting ASN, so treat the free tier as datacenter, not residential |
+| [IPRoyal](https://iproyal.com/?r=1623337) | Static residential | Budget; non-expiring traffic. Carries "fake ISP" complaints — fraud-score any IP during the trial window before committing |
+| [NodeMaven](https://nodemaven.com/?ref_id=1232716d) | Dedicated static ISP | Mid-tier, flat per-IP pricing with no bandwidth metering on dedicated IPs |
 
 Described by measurable properties — static vs rotating, ASN, session duration, bandwidth
 caps — rather than ranked. The full ladder (including static mobile for the hardest

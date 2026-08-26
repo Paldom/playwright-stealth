@@ -34,12 +34,16 @@ Products in this category, with their measurable properties rather than a rankin
 
 | Product | Coverage | Caps worth knowing |
 | --- | --- | --- |
-| Bright Data "ISP Proxies" | ~700K IPs, most countries | 100 GB per IP fair-use |
 | Oxylabs "Static Residential" | 17 countries, SOCKS5/UDP | concurrency drops past 50 GB/IP shared, 100 GB/IP dedicated |
+| NodeMaven dedicated | flat per-IP, mid-tier | no bandwidth metering on dedicated IPs |
+| Decodo static residential | value tier | the most consistent organic sentiment on r/proxies |
 
 If budget is the binding constraint, Decodo (formerly Smartproxy) benchmarks close to the
-majors on success rate at roughly a fifth of Bright Data's per-GB price — confirm it
-offers a genuinely *static* product before binding one to an identity.
+premium providers on success rate at a fraction of their per-GB price — confirm it offers
+a genuinely *static* product before binding one to an identity.
+
+Vendors enter and leave this market, and entry tiers get withdrawn without notice. Check
+the product still exists and still sells single static IPs before planning around it.
 
 ## Rung 2 — static mobile
 
@@ -98,9 +102,9 @@ against the configured value and reports a mismatch.
 - **NetNut: do not recommend.** The FBI and IRS-CI seized its domains on 2 July 2026 over
   alleged ties to a roughly 2M-device botnet. Any article praising it that predates July
   2026 is stale.
-- **Bright Data sourcing.** Researchers published findings in 2026 about its residential
-  pool being built partly via an SDK embedded in smart-TV apps. Note it and let the reader
-  decide.
+- **Ask how the pool was built, including at the premium end.** Researchers published
+  findings in 2026 on a major provider's residential pool being assembled partly via an SDK
+  embedded in smart-TV apps. Price tier is not a proxy for provenance.
 - **Sourcing ethics are a real risk axis, not PR.** Takedowns through 2025–2026 confirmed
   that meaningful portions of "residential" inventory come from compromised devices and
   malicious SDKs. Buying that inventory is a choice with consequences beyond uptime.

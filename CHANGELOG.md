@@ -7,6 +7,21 @@ versioning: [SemVer](https://semver.org) on the plugin manifest
 
 ## [Unreleased]
 
+### Fixed
+- **The canary's durable-login signal was false assurance.** Its "marker cookie survived
+  the last run" check set its own cookie with an explicit one-year expiry, so it passed by
+  construction and was read as proof of a live login. It only ever proved the cookie file
+  round-trips, and a profile whose logins had all expired still reported healthy. Renamed
+  to "persistent-cookie storage works", with the limit stated in the check's own output.
+- **Added the durability warning that was actually missing.** `launch.py` now reports, at
+  the end of a live session, any host holding only session-scoped cookies (`expires == -1`)
+  — those are signed out the moment the browser closes, however well the profile persists.
+  It runs there rather than in the canary because the canary launches its own browser, by
+  which point Chromium has already deleted the evidence. Observed in the wild on vendor
+  dashboards: the auth cookies were session-scoped while everything that persisted was
+  analytics and anti-fraud fingerprinting. The hand-login step now tells the user to tick
+  "remember me", which is what makes a site issue a persistent token instead.
+
 ### Changed
 - **Identity provisioning moved out of `playwright-stealth` into a new
   `playwright-stealth-identity` skill.** The parent's description no longer advertises

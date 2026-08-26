@@ -69,6 +69,16 @@ this skill every time is the right choice only for one-offs.
    They log in in the window and press Enter in the terminal, which closes the browser and
    flushes the profile to disk. Cookies now live in `user-data/`; the device is the seed.
 
+   **Tell them to tick "remember me" / "keep me signed in".** This is not optional advice.
+   Without it most sites issue their auth token as a *session* cookie, which Chromium
+   deletes on close no matter how well the profile persists — the profile survives and the
+   login does not. It is one click and it is the difference between a session you can
+   resume for weeks and one that dies when the window shuts.
+
+   Then prove it, before anyone depends on it: close the browser, relaunch the same
+   identity, and load a page that only renders when signed in. A profile that "looks
+   saved" is not evidence.
+
 4. **Verify, before you trust the session.**
    ```bash
    python3 "${CLAUDE_SKILL_DIR}/scripts/canary.py" --identity acme-portal

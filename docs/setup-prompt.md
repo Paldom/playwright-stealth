@@ -27,13 +27,13 @@ Order of work - do not skip or reorder:
 3. Profile. Show me `.stealth/<IDENTITY>/profile.toml`. If I want a proxy, apply it with the identity skill's flags rather than hand-editing - preflight it first with `python3 -m cloakbrowser info --proxy <url>`, take the password from STEALTH_PROXY_PASSWORD, and verify afterwards with the canary's `--check-egress`.
 
 4. Hand login. `python3 "${CLAUDE_SKILL_DIR}/scripts/launch.py" --identity <IDENTITY> --url <LOGIN_URL>`
-   Hand me the window and wait. Do not type my credentials. I press Enter in the terminal when done, which closes the browser and flushes the profile.
+   Hand me the window and wait. Do not type my credentials. Remind me to tick "remember me" / "keep me signed in" - without it the site issues a session-only cookie and the login dies when the browser closes, however well the profile persists. I press Enter in the terminal when done, which closes the browser and flushes the profile.
 
 5. Baseline. `python3 "${CLAUDE_SKILL_DIR}/scripts/canary.py" --identity <IDENTITY>`
    Gate: `RESULT: ok` and `.stealth/<IDENTITY>/baseline.json` now exists.
 
 6. Prove the resume. Relaunch the same identity, confirm <SITE> still shows me logged in, close it, and run the canary again.
-   Gate: `RESULT: ok` with "canvas hash matches baseline" PASS and "marker cookie survived the last run" PASS. That pair is the whole point - same device, same session.
+   Gate: `RESULT: ok` with "canvas hash matches baseline" PASS. Then actually load a signed-in-only page to prove the session resumed - the canary never visits target sites, so it cannot check that for me. If step 4 printed a `NOTE:` about session-scoped cookies for <SITE>, the login will not survive and I need to redo it with "remember me" ticked.
 
 Rules:
 - Never edit, weaken or skip a check to get a green result. A `RESULT: fail` is a real failure: read the detail and fix the cause.

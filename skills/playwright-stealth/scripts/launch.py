@@ -530,6 +530,45 @@ def open_identity(identity: str, root: str = ".", force: bool = False):
                 ctx.close()
 
 
+def session_only_hosts(ctx) -> list[str]:
+    """Hosts whose every cookie dies when the browser closes.
+
+    Playwright reports a session cookie as ``expires == -1``. A host holding nothing but
+    session cookies has no durable token, so a login there will NOT survive a restart
+    however well the profile persists — the profile is intact and the login is gone. This
+    is the failure a persistent profile looks like it should prevent and cannot.
+
+    It has to be read from a LIVE context: once the browser closes, Chromium deletes those
+    cookies and the evidence with them.
+    """
+    try:
+        cookies = ctx.cookies()
+    except Exception:  # noqa: BLE001 - never let a diagnostic break a session
+        return []
+    durable, seen = set(), set()
+    for c in cookies:
+        host = (c.get("domain") or "").lstrip(".")
+        if not host:
+            continue
+        seen.add(host)
+        if (c.get("expires") or -1) > 0:
+            durable.add(host)
+    return sorted(seen - durable)
+
+
+def warn_session_only(ctx) -> None:
+    """Print the durability warning while the live cookies can still be inspected."""
+    hosts = session_only_hosts(ctx)
+    if not hosts:
+        return
+    print(f"NOTE: {len(hosts)} host(s) gave this profile only session-scoped cookies and "
+          f"will be signed out when the browser closes: {', '.join(hosts[:6])}"
+          f"{' …' if len(hosts) > 6 else ''}", file=sys.stderr)
+    print('NOTE: if you just logged in to one of those, log in again and tick "remember '
+          'me" / "keep me signed in" — otherwise the site issues a token that cannot '
+          "outlive this window, no matter how well the profile persists.", file=sys.stderr)
+
+
 def run_canary(identity: str, root: str) -> int:
     script = os.path.join(SKILL_DIR, "scripts", "canary.py")
     proc = subprocess.run([sys.executable, script, "--identity", identity, "--root", root],
@@ -549,6 +588,8 @@ def hold_open(identity: str, root: str, url: str | None, force: bool) -> int:
               "to close and save the profile.", file=sys.stderr)
         with contextlib.suppress(EOFError, KeyboardInterrupt):
             input()
+        # Last chance to see this: the close below deletes every session cookie.
+        warn_session_only(ctx)
     return 0
 
 
@@ -619,6 +660,30 @@ def self_test() -> int:
     kwargs, notes = derive({**base, "identity": {"seed": 1, "storage_quota_mb": 0}})
     assert not any(a.startswith("--fingerprint-storage-quota") for a in kwargs["args"])
     assert any("incognito" in n for n in notes)
+
+    # Session-cookie durability. A host with any persistent cookie is fine; one with only
+    # session cookies is a login that will not survive the close.
+    class FakeCtx:
+        def __init__(self, cookies):
+            self._c = cookies
+
+        def cookies(self):
+            return self._c
+
+    assert session_only_hosts(FakeCtx([])) == []
+    assert session_only_hosts(FakeCtx([
+        {"domain": "app.impact.com", "expires": -1},
+        {"domain": ".dashboard.oxylabs.io", "expires": -1},
+        {"domain": "dashboard.webshare.io", "expires": 1_900_000_000},
+        {"domain": "mixed.example", "expires": -1},
+        {"domain": "mixed.example", "expires": 1_900_000_000},
+    ])) == ["app.impact.com", "dashboard.oxylabs.io"], "a leading dot must not split a host"
+
+    class DeadCtx:
+        def cookies(self):
+            raise RuntimeError("context closed")
+
+    assert session_only_hosts(DeadCtx()) == [], "a dead context must not break the session"
 
     assert roll_seed({SEED_MIN}) != SEED_MIN
     for bad in ("", "a/b", ".hidden", "a\\b"):

@@ -80,9 +80,42 @@ update, a new monitor, a display-scale change), so they inform rather than gate.
 - **`hardwareConcurrency` plausible.**
 - **No other fingerprint drift** — user agent, platform, languages, device memory, screen
   metrics, WebGL strings, timezone, all compared to the baseline.
-- **Marker cookie survived the last run** — from the second run onward, proof that the
-  persistent profile is actually round-tripping cookies to disk. If this fails, durable
-  logins are not working and nothing else in the identity design matters.
+- **Persistent-cookie storage works** — from the second run onward, proof that the profile
+  round-trips cookies to disk at all. If this fails, nothing else in the identity design
+  matters. **It is not proof that you are still logged in anywhere**, and it must not be
+  read that way: the marker carries an explicit one-year expiry, so it passes by
+  construction. An earlier version of this check was labelled "marker cookie survived" and
+  was taken as a durable-login signal, which it never was.
+The canary deliberately does **not** check whether you are still logged in. It launches its
+own browser, so session cookies from the previous run are already deleted before it can
+look, and it never visits a target site. A row here would pass every time and read as "your
+logins are durable" when it really meant "there is nothing left to see". `launch.py` prints
+that warning instead, at the end of a live session, which is the only moment the evidence
+still exists.
+
+### Why a persistent profile still loses logins
+
+`launch_persistent_context` writes every cookie the site sets, and persistent ones survive
+exactly as promised. What it cannot do is make a **session cookie** persistent — that is
+the site's choice, expressed as `is_persistent=0`, and Chromium honours it by deleting the
+cookie on close.
+
+Observed on real vendor dashboards, 2026-08-25: an affiliate platform's `IMPACT_MEMBER_SID`
+and a proxy dashboard's `SNS` were both session-scoped, while everything that *did* persist
+for those hosts was analytics and anti-fraud fingerprinting (`fingerprintComponents`,
+`_sn_*`, `__stripe_*`, `nQ_*`). The profile was intact; the logins were gone.
+
+Three things follow, in order of value:
+
+1. **Tick "remember me" / "keep me signed in" at hand-login.** That is what makes the site
+   issue a persistent token instead of a session one. It is the single highest-value habit
+   in this whole toolkit, and it costs one click.
+2. **If a site offers no such option, its login cannot outlive the browser.** Do the work
+   inside one live session rather than expecting to resume — or drive it with a recorded
+   job that logs in as its first step.
+3. **Check before you rely on it.** Close the browser, reopen the identity, and load a
+   logged-in-only page. The canary cannot do this for you: it never visits target sites, so
+   it can see that cookies persist but not whether any given site still trusts you.
 
 ## Failure to fix
 
@@ -96,7 +129,8 @@ update, a new monitor, a display-scale change), so they inform rather than gate.
 | `canvas hash matches baseline`, after an upgrade | the binary or wrapper changed | expected — review, then `--rebaseline` |
 | `WebGL renderer is hardware` | headless, or GPU unavailable | set `headless = false`; on Linux use a real or virtual display |
 | `wheel input is trusted` | scrolling via JS | use `page.mouse.wheel(...)` |
-| `marker cookie survived` (advisory) | profile not persisting | confirm `user-data/` is writable and the session closed cleanly rather than being killed |
+| `persistent-cookie storage works` (advisory) | profile not persisting at all | confirm `user-data/` is writable and the session closed cleanly rather than being killed |
+| `NOTE: … only session-scoped cookies` from `launch.py` | the site issued a session-only auth cookie | log in again and tick "remember me" / "keep me signed in"; if the site offers no such option, its login cannot outlive the browser and the flow must run inside one live session |
 | `timezone matches egress` (advisory) | `profile.toml` disagrees with the proxy | re-run `python3 -m cloakbrowser info --proxy <url>` and set `timezone`/`locale` to what it reports |
 
 Never disable, weaken, or edit the canary to make it pass, and never report a session as

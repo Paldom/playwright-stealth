@@ -21,8 +21,13 @@ REQUIRED (exit 1 on failure)
 
 ADVISORY (reported, and fail the run only under --strict)
   Client-Hints coherence, UA vs navigator.platform, screen and hardware drift,
-  window.chrome present, plugin list non-empty, marker cookie survived the last run,
+  window.chrome present, plugin list non-empty, persistent-cookie storage works,
   and — under --check-egress — the browser clock against the real exit IP
+
+NOT checked here: whether you are still logged in anywhere. This launches its own browser,
+so session cookies from the previous run are already gone before it can look, and it never
+visits a target site. launch.py warns about session-only logins at the end of a live
+session, which is the only moment the evidence still exists.
 
 Usage:
   python3 canary.py --identity acme-portal            # write or diff the baseline
@@ -272,9 +277,22 @@ def score(raw: dict, baseline: dict | None, versions: dict, strict: bool = False
             "identical to baseline" if not drifted else
             "; ".join(f"{k}: {base_fp[k]!r} -> {fp[k]!r}" for k in drifted))
         marker = raw.get("markerCookie")
-        add("marker cookie survived the last run", "advisory", marker is True,
-            "persistent profile round-tripped a cookie" if marker is True else
-            f"marker missing ({marker!r}) — cookies may not be persisting to user-data/")
+        # Deliberately narrow wording. This marker carries an explicit one-year expiry, so
+        # it only ever proves the cookie FILE round-trips. It says nothing about whether
+        # you are still signed in anywhere: most sites issue their auth token as a
+        # session cookie (is_persistent=0), which Chromium drops on close by design. An
+        # earlier label here read "marker cookie survived the last run", which was taken
+        # as proof of a durable login and was not.
+        add("persistent-cookie storage works", "advisory", marker is True,
+            "the cookie file round-trips (NOT proof of a live login — session cookies "
+            "still die on close)" if marker is True else
+            f"marker missing ({marker!r}) — cookies are not persisting to user-data/ at all")
+
+    # There is deliberately NO "logins survive a restart" row here. The canary launches its
+    # own browser, so any session cookie from the previous run is already deleted before it
+    # can look — the check would pass every time and read as "your logins are durable" when
+    # it actually means "there is nothing left to see". launch.py runs it at the only
+    # moment it can observe anything: at the end of a live session, before close.
 
     required_failed = any(r["status"] == "FAIL" for r in results)
     warned = any(r["status"] == "WARN" for r in results)
@@ -502,6 +520,17 @@ def self_test() -> int:
     res, _, _ = score(clean, baseline, versions)
     assert any(r["check"] == "user agent matches navigator.platform" and r["status"] == "PASS"
                for r in res)
+
+    # Login durability. The marker only ever proves the cookie FILE round-trips, so its
+    # wording must not imply a live session — that overclaim is what made a logged-out
+    # profile read as healthy. The session-only-host check is the real signal.
+    res, _, ok = score(clean, baseline, versions, strict=True)
+    assert ok
+    marker_row = [r for r in res if r["check"] == "persistent-cookie storage works"][0]
+    assert "NOT proof of a live login" in marker_row["detail"]
+    assert not any(r["check"].startswith("marker cookie survived") for r in res)
+    # The durability row belongs to launch.py, not here — see the comment in score().
+    assert not any(r["check"] == "logins survive a restart" for r in res)
 
     assert fingerprint_of(clean)["canvasHash"] == fingerprint_of(clean)["canvasHash"]
     assert AUTOMATION_KEY.search("__pwInitScripts") and not AUTOMATION_KEY.search("chrome")
