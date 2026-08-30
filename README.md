@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/icon.svg" alt="playwright-stealth icon" width="128"/>
+</p>
+
 # Playwright Stealth
 
 [![CI](https://github.com/Paldom/playwright-stealth/actions/workflows/ci.yml/badge.svg)](https://github.com/Paldom/playwright-stealth/actions/workflows/ci.yml)
