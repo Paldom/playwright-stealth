@@ -1,6 +1,6 @@
 ---
 name: playwright-stealth-setup
-description: Installs and verifies the CloakBrowser stealth-Chromium toolchain — pip package, ~200 MB patched binary, licence key, macOS unquarantine. Use when the stealth browser is missing or broken — 'set up cloakbrowser', 'install the stealth browser', 'cloakbrowser install failed'. Not for installing plain Playwright or Chrome, creating an identity or profile, or launching a session.
+description: Installs and verifies the CloakBrowser stealth-Chromium toolchain — pip package, ~200 MB patched binary, licence key, macOS unquarantine. Use to install or get the stealth browsing environment ready, or when it is missing or broken — 'set up cloakbrowser', 'cloakbrowser install failed'. Not for installing plain Playwright or Chrome, creating an identity or profile, or launching a session.
 license: MIT
 ---
 

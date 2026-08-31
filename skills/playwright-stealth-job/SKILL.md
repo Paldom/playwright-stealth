@@ -1,6 +1,6 @@
 ---
 name: playwright-stealth-job
-description: Records a browsing task as a committed Python job on a stealth identity, then replays it with no model in the loop — lint-gated, seed-jittered, with a run manifest. Use for making a browser flow repeatable or scheduled, replaying or listing a saved job, cutting per-run LLM cost, or repairing a broken job. Not for one-off browsing, creating an identity, or installing the toolchain.
+description: Records a browsing task as a committed Python job on a stealth identity, then replays it with no model in the loop — lint-gated, seed-jittered, with a run manifest. Use to make a browser flow repeatable or scheduled, replay or list the saved jobs, cut per-run LLM cost, or repair a broken job. Not for one-off browsing, creating an identity, or installing the toolchain.
 license: MIT
 ---
 

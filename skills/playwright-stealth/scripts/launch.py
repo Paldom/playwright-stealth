@@ -33,6 +33,7 @@ Agent code should not re-derive any of this — import the context manager inste
 
 Exit codes: 0 ok, 1 preflight/launch failure, 2 usage.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -43,6 +44,7 @@ import re
 import secrets
 import subprocess
 import sys
+from pathlib import Path
 
 STEALTH_DIR = ".stealth"
 PROFILE_NAME = "profile.toml"
@@ -74,7 +76,9 @@ class PreflightError(RuntimeError):
 
 def identity_dir(identity: str, root: str) -> str:
     if not identity or "/" in identity or "\\" in identity or identity.startswith("."):
-        raise PreflightError(f"invalid identity name {identity!r} — use a kebab-case directory name")
+        raise PreflightError(
+            f"invalid identity name {identity!r} — use a kebab-case directory name"
+        )
     return os.path.join(os.path.abspath(root), STEALTH_DIR, identity)
 
 
@@ -83,6 +87,7 @@ def identity_dir(identity: str, root: str) -> str:
 
 def read_profile(path: str) -> dict:
     import tomllib
+
     try:
         with open(path, "rb") as fh:
             return tomllib.load(fh)
@@ -112,7 +117,8 @@ def derive(cfg: dict) -> tuple[dict, list[str]]:
         raise PreflightError(
             "identity.seed is unset (0). An unseeded launch rolls a NEW random device "
             "fingerprint every time, which is exactly what this skill exists to prevent. "
-            "Run with --init to roll and persist a seed.")
+            "Run with --init to roll and persist a seed."
+        )
 
     # stealth_args stays True: it carries the fingerprint flags. Our args win over the
     # wrapper's random default because build_args() dedups by flag key, ours last.
@@ -127,9 +133,11 @@ def derive(cfg: dict) -> tuple[dict, list[str]]:
     if isinstance(quota, int) and quota > 0:
         args.append(f"--fingerprint-storage-quota={quota}")
     else:
-        notes.append("storage quota left at the binary's normalized value — some detectors "
-                     "read that as incognito; set identity.storage_quota_mb to present as a "
-                     "regular profile")
+        notes.append(
+            "storage quota left at the binary's normalized value — some detectors "
+            "read that as incognito; set identity.storage_quota_mb to present as a "
+            "regular profile"
+        )
 
     kwargs: dict = {
         "headless": bool(browser.get("headless", False)),
@@ -146,7 +154,8 @@ def derive(cfg: dict) -> tuple[dict, list[str]]:
         if preset not in ("default", "careful"):
             raise PreflightError(
                 f"browser.human_preset={preset!r} is not a valid preset — use 'default' or "
-                "'careful', or leave it empty for the wrapper default")
+                "'careful', or leave it empty for the wrapper default"
+            )
         kwargs["human_preset"] = preset
 
     proxy_server = (net.get("proxy_server") or "").strip()
@@ -159,8 +168,10 @@ def derive(cfg: dict) -> tuple[dict, list[str]]:
             if password:
                 proxy["password"] = password
             else:
-                notes.append("proxy_username is set but STEALTH_PROXY_PASSWORD is not exported "
-                             "— the proxy will likely reject the connection")
+                notes.append(
+                    "proxy_username is set but STEALTH_PROXY_PASSWORD is not exported "
+                    "— the proxy will likely reject the connection"
+                )
         bypass = (net.get("proxy_bypass") or "").strip()
         if bypass:
             proxy["bypass"] = bypass
@@ -178,8 +189,10 @@ def derive(cfg: dict) -> tuple[dict, list[str]]:
         # left to the wrapper default so the "no third-party lookup" promise cannot be
         # broken by a future change of that default.
         kwargs["geoip"] = False
-        notes.append("no proxy — using this machine's own connection; geoip and webrtc_ip "
-                     "are not passed (no third-party lookup)")
+        notes.append(
+            "no proxy — using this machine's own connection; geoip and webrtc_ip "
+            "are not passed (no third-party lookup)"
+        )
 
     timezone = (net.get("timezone") or "").strip()
     locale = (net.get("locale") or "").strip()
@@ -247,20 +260,22 @@ def profile_lock(path: str, force: bool = False):
             raise PreflightError(
                 f"identity is already open by another process (lock held on {path}). "
                 "A Chromium profile is single-writer — close the other session, or use a "
-                "separate identity to run two tasks at once.") from None
+                "separate identity to run two tasks at once."
+            ) from None
         os.ftruncate(fd, 0)
         os.write(fd, f"{os.getpid()}\n".encode())
     else:  # pragma: no cover - non-Unix
         if os.path.exists(path):
             if not force:
                 try:
-                    holder = int(open(path, encoding="utf-8").read().strip() or 0)
+                    holder = int(Path(path).read_text(encoding="utf-8").strip() or 0)
                 except (OSError, ValueError):
                     holder = 0
                 if holder and _pid_alive(holder):
                     raise PreflightError(
                         f"identity is already open by PID {holder} (lock file {path}). "
-                        "Close it, or use a separate identity.")
+                        "Close it, or use a separate identity."
+                    )
             os.unlink(path)  # stale, or an explicit --force
         fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_RDWR, 0o600)
         os.write(fd, f"{os.getpid()}\n".encode())
@@ -285,8 +300,9 @@ def gitignore_problem(root: str) -> str | None:
 
     def git(*argv) -> int | None:
         try:
-            return subprocess.run(["git", "-C", root, *argv],
-                                  capture_output=True, text=True, timeout=30).returncode
+            return subprocess.run(
+                ["git", "-C", root, *argv], capture_output=True, text=True, timeout=30
+            ).returncode
         except (OSError, subprocess.SubprocessError):
             return None  # git absent or hung — treat as "no repo to leak into"
 
@@ -294,9 +310,11 @@ def gitignore_problem(root: str) -> str | None:
         return None  # not a git repo, or no git at all — nothing to leak into
     if git("check-ignore", "-q", os.path.join(root, STEALTH_DIR, "probe")) == 0:
         return None
-    return (f"{STEALTH_DIR}/ is NOT gitignored in {root}. It holds session cookies and "
-            f"saved passwords. Add a line '{STEALTH_DIR}/' to .gitignore, then retry "
-            "(--init does this for you).")
+    return (
+        f"{STEALTH_DIR}/ is NOT gitignored in {root}. It holds session cookies and "
+        f"saved passwords. Add a line '{STEALTH_DIR}/' to .gitignore, then retry "
+        "(--init does this for you)."
+    )
 
 
 def preflight_config(identity: str, root: str) -> tuple[str, dict]:
@@ -304,7 +322,8 @@ def preflight_config(identity: str, root: str) -> tuple[str, dict]:
     if sys.version_info[:2] < MIN_PYTHON:
         raise PreflightError(
             f"Python {'.'.join(map(str, MIN_PYTHON))}+ required (profile.toml is read with "
-            f"stdlib tomllib); running {sys.version.split()[0]}")
+            f"stdlib tomllib); running {sys.version.split()[0]}"
+        )
     idir = identity_dir(identity, root)
     if not os.path.isdir(idir):
         # Name the skill, not just the flag: the agent may have routed straight here and
@@ -312,7 +331,8 @@ def preflight_config(identity: str, root: str) -> tuple[str, dict]:
         raise PreflightError(
             f"no identity at {idir} — the playwright-stealth-identity skill creates it "
             f"(identity.py --identity {identity} --init). This skill does not create "
-            "identities.")
+            "identities."
+        )
     cfg = read_profile(os.path.join(idir, PROFILE_NAME))
     problem = gitignore_problem(root)
     if problem:
@@ -327,12 +347,14 @@ def preflight_runtime(idir: str) -> None:
     except ImportError as exc:
         raise PreflightError(
             f"cloakbrowser is not importable ({exc}) — run the playwright-stealth-setup "
-            "skill first; this skill installs nothing") from None
+            "skill first; this skill installs nothing"
+        ) from None
     holder = chromium_singleton_holder(os.path.join(idir, USER_DATA))
     if holder:
         raise PreflightError(
             f"a Chromium process (PID {holder}) is already using {idir}/{USER_DATA}. "
-            "Close it before launching — two writers corrupt the profile.")
+            "Close it before launching — two writers corrupt the profile."
+        )
 
 
 # ---------------------------------------------------------------------------- init
@@ -369,10 +391,12 @@ def ensure_gitignored(root: str) -> str:
     path = os.path.join(root, ".gitignore")
     existing = ""
     if os.path.isfile(path):
-        existing = open(path, encoding="utf-8").read()
+        existing = Path(path).read_text(encoding="utf-8")
     sep = "" if (not existing or existing.endswith("\n")) else "\n"
     with open(path, "a", encoding="utf-8") as fh:
-        fh.write(f"{sep}\n# Stealth browsing identities — live session credentials.\n{STEALTH_DIR}/\n")
+        fh.write(
+            f"{sep}\n# Stealth browsing identities — live session credentials.\n{STEALTH_DIR}/\n"
+        )
     return f"appended '{STEALTH_DIR}/' to {path}"
 
 
@@ -394,7 +418,8 @@ def apply_settings(text: str, settings: dict) -> str:
     """
     for key, value in settings.items():
         pattern = re.compile(
-            rf'^(\s*{re.escape(key)}\s*=\s*)(?:"[^"]*"|[^\s#]+)(\s*(?:#.*)?)$', re.M)
+            rf'^(\s*{re.escape(key)}\s*=\s*)(?:"[^"]*"|[^\s#]+)(\s*(?:#.*)?)$', re.M
+        )
 
         def replace(m, value=value):
             assigned = f"{m.group(1)}{toml_value(value)}"
@@ -411,7 +436,8 @@ def apply_settings(text: str, settings: dict) -> str:
         if n != 1:
             raise PreflightError(
                 f"cannot set {key!r}: no such key in {TEMPLATE}. The template and this "
-                "script have drifted apart — fix the template rather than the profile.")
+                "script have drifted apart — fix the template rather than the profile."
+            )
     return text
 
 
@@ -424,7 +450,8 @@ def settings_from_args(args) -> dict:
             raise PreflightError(
                 f"--proxy {proxy!r} must start with http://, https:// or socks5:// "
                 "(and must be CONNECT-only — a TLS-terminating proxy destroys the real "
-                "Chrome JA3/JA4 fingerprint)")
+                "Chrome JA3/JA4 fingerprint)"
+            )
         settings["proxy_server"] = proxy
     if args.proxy_user is not None:
         settings["proxy_username"] = args.proxy_user.strip()
@@ -432,7 +459,8 @@ def settings_from_args(args) -> dict:
         tz = args.timezone.strip()
         if tz and "/" not in tz and tz != "UTC":
             raise PreflightError(
-                f"--timezone {tz!r} does not look like an IANA zone (e.g. Europe/London)")
+                f"--timezone {tz!r} does not look like an IANA zone (e.g. Europe/London)"
+            )
         settings["timezone"] = tz
     if args.locale is not None:
         loc = args.locale.strip()
@@ -475,7 +503,7 @@ def init_identity(identity: str, root: str, settings: dict | None = None) -> int
             # Retune: apply the given settings to the EXISTING file, keeping its seed,
             # its comments, and any hand-edits to keys we were not asked to change.
             if settings:
-                text = apply_settings(open(profile, encoding="utf-8").read(), settings)
+                text = apply_settings(Path(profile).read_text(encoding="utf-8"), settings)
                 write_profile(profile, text)
                 for key, value in settings.items():
                     print(f"STATUS set: {key} = {toml_value(value)}")
@@ -487,7 +515,7 @@ def init_identity(identity: str, root: str, settings: dict | None = None) -> int
     seed = roll_seed(existing_seeds(root))
     # Copy the commented template and substitute values into it. The template is the
     # single source of truth for defaults and comments; this never serialises TOML.
-    text = open(TEMPLATE, encoding="utf-8").read()
+    text = Path(TEMPLATE).read_text(encoding="utf-8")
     if "seed = 0" not in text:
         raise PreflightError(f"template {TEMPLATE} has no 'seed = 0' line to substitute")
     text = apply_settings(text, {"seed": seed, **settings})
@@ -521,6 +549,7 @@ def open_identity(identity: str, root: str = ".", force: bool = False):
     user_data_dir = os.path.join(idir, USER_DATA)
     os.makedirs(user_data_dir, mode=0o700, exist_ok=True)
     from cloakbrowser import launch_persistent_context
+
     with profile_lock(os.path.join(idir, LOCK_NAME), force=force):
         ctx = launch_persistent_context(user_data_dir, **kwargs)
         try:
@@ -543,7 +572,7 @@ def session_only_hosts(ctx) -> list[str]:
     """
     try:
         cookies = ctx.cookies()
-    except Exception:  # noqa: BLE001 - never let a diagnostic break a session
+    except Exception:
         return []
     durable, seen = set(), set()
     for c in cookies:
@@ -561,18 +590,25 @@ def warn_session_only(ctx) -> None:
     hosts = session_only_hosts(ctx)
     if not hosts:
         return
-    print(f"NOTE: {len(hosts)} host(s) gave this profile only session-scoped cookies and "
-          f"will be signed out when the browser closes: {', '.join(hosts[:6])}"
-          f"{' …' if len(hosts) > 6 else ''}", file=sys.stderr)
-    print('NOTE: if you just logged in to one of those, log in again and tick "remember '
-          'me" / "keep me signed in" — otherwise the site issues a token that cannot '
-          "outlive this window, no matter how well the profile persists.", file=sys.stderr)
+    print(
+        f"NOTE: {len(hosts)} host(s) gave this profile only session-scoped cookies and "
+        f"will be signed out when the browser closes: {', '.join(hosts[:6])}"
+        f"{' …' if len(hosts) > 6 else ''}",
+        file=sys.stderr,
+    )
+    print(
+        'NOTE: if you just logged in to one of those, log in again and tick "remember '
+        'me" / "keep me signed in" — otherwise the site issues a token that cannot '
+        "outlive this window, no matter how well the profile persists.",
+        file=sys.stderr,
+    )
 
 
 def run_canary(identity: str, root: str) -> int:
     script = os.path.join(SKILL_DIR, "scripts", "canary.py")
-    proc = subprocess.run([sys.executable, script, "--identity", identity, "--root", root],
-                          timeout=600)
+    proc = subprocess.run(
+        [sys.executable, script, "--identity", identity, "--root", root], timeout=600
+    )
     return proc.returncode
 
 
@@ -584,8 +620,11 @@ def hold_open(identity: str, root: str, url: str | None, force: bool) -> int:
         print(f"STATUS identity: {identity}")
         print(f"STATUS pages: {len(ctx.pages)}")
         print("RESULT: ok")
-        print("Browser open. Log in or work in the window, then press Enter (or Ctrl-C) "
-              "to close and save the profile.", file=sys.stderr)
+        print(
+            "Browser open. Log in or work in the window, then press Enter (or Ctrl-C) "
+            "to close and save the profile.",
+            file=sys.stderr,
+        )
         with contextlib.suppress(EOFError, KeyboardInterrupt):
             input()
         # Last chance to see this: the close below deletes every session cookie.
@@ -597,10 +636,17 @@ def hold_open(identity: str, root: str, url: str | None, force: bool) -> int:
 
 
 def self_test() -> int:
-    base = {"browser": {"headless": False, "humanize": True, "human_preset": "careful"},
-            "identity": {"seed": 12345, "platform": "", "storage_quota_mb": 5000},
-            "network": {"proxy_server": "", "geoip": True, "webrtc_ip": "auto",
-                        "timezone": "", "locale": ""}}
+    base = {
+        "browser": {"headless": False, "humanize": True, "human_preset": "careful"},
+        "identity": {"seed": 12345, "platform": "", "storage_quota_mb": 5000},
+        "network": {
+            "proxy_server": "",
+            "geoip": True,
+            "webrtc_ip": "auto",
+            "timezone": "",
+            "locale": "",
+        },
+    }
 
     kwargs, notes = derive(base)
     assert kwargs["headless"] is False and kwargs["humanize"] is True
@@ -624,25 +670,34 @@ def self_test() -> int:
         else:  # pragma: no cover
             raise AssertionError(f"seed={bad!r} should have raised")
 
-    proxied = {**base, "network": {"proxy_server": "http://p:8080", "proxy_username": "u",
-                                   "geoip": True, "webrtc_ip": "auto",
-                                   "timezone": "", "locale": ""}}
+    proxied = {
+        **base,
+        "network": {
+            "proxy_server": "http://p:8080",
+            "proxy_username": "u",
+            "geoip": True,
+            "webrtc_ip": "auto",
+            "timezone": "",
+            "locale": "",
+        },
+    }
     kwargs, notes = derive(proxied)
     assert kwargs["proxy"]["server"] == "http://p:8080" and kwargs["geoip"] is True
     assert "--fingerprint-webrtc-ip=auto" in kwargs["args"]
-    assert "password" not in kwargs["proxy"]          # not in the env → not invented
+    assert "password" not in kwargs["proxy"]  # not in the env → not invented
     assert any("STEALTH_PROXY_PASSWORD" in n for n in notes)
 
-    os.environ["STEALTH_PROXY_PASSWORD"] = "s3cret"
+    os.environ["STEALTH_PROXY_PASSWORD"] = "s3cret"  # noqa: S105 - an environment-variable NAME, not a credential
     try:
         kwargs, _ = derive(proxied)
-        assert kwargs["proxy"]["password"] == "s3cret"
+        assert kwargs["proxy"]["password"] == "s3cret"  # noqa: S105 - an environment-variable NAME, not a credential
     finally:
         del os.environ["STEALTH_PROXY_PASSWORD"]
 
     # Explicit timezone/locale become binary flags via the wrapper's own params.
-    kwargs, notes = derive({**base, "network": {**base["network"],
-                                                "timezone": "Europe/Budapest", "locale": "hu-HU"}})
+    kwargs, notes = derive(
+        {**base, "network": {**base["network"], "timezone": "Europe/Budapest", "locale": "hu-HU"}}
+    )
     assert kwargs["timezone"] == "Europe/Budapest" and kwargs["locale"] == "hu-HU"
 
     # Weakened settings must be reported, not silently accepted.
@@ -671,13 +726,17 @@ def self_test() -> int:
             return self._c
 
     assert session_only_hosts(FakeCtx([])) == []
-    assert session_only_hosts(FakeCtx([
-        {"domain": "app.impact.com", "expires": -1},
-        {"domain": ".dashboard.oxylabs.io", "expires": -1},
-        {"domain": "dashboard.webshare.io", "expires": 1_900_000_000},
-        {"domain": "mixed.example", "expires": -1},
-        {"domain": "mixed.example", "expires": 1_900_000_000},
-    ])) == ["app.impact.com", "dashboard.oxylabs.io"], "a leading dot must not split a host"
+    assert session_only_hosts(
+        FakeCtx(
+            [
+                {"domain": "app.impact.com", "expires": -1},
+                {"domain": ".dashboard.oxylabs.io", "expires": -1},
+                {"domain": "dashboard.webshare.io", "expires": 1_900_000_000},
+                {"domain": "mixed.example", "expires": -1},
+                {"domain": "mixed.example", "expires": 1_900_000_000},
+            ]
+        )
+    ) == ["app.impact.com", "dashboard.oxylabs.io"], "a leading dot must not split a host"
 
     class DeadCtx:
         def cookies(self):
@@ -695,7 +754,7 @@ def self_test() -> int:
             raise AssertionError(f"identity {bad!r} should have raised")
 
     assert os.path.isfile(TEMPLATE), f"missing template {TEMPLATE}"
-    template = open(TEMPLATE, encoding="utf-8").read()
+    template = Path(TEMPLATE).read_text(encoding="utf-8")
     assert "seed = 0" in template
 
     assert toml_value("en-GB") == '"en-GB"' and toml_value(0) == "0"
@@ -704,11 +763,19 @@ def self_test() -> int:
 
     # Substituting into the real template must keep every comment and still parse as TOML.
     import tomllib
-    applied = apply_settings(template, {
-        "seed": 12345, "proxy_server": "socks5://p:1080", "proxy_username": "u",
-        "timezone": "Europe/London", "locale": "en-GB", "human_preset": "default",
-        "storage_quota_mb": 0,
-    })
+
+    applied = apply_settings(
+        template,
+        {
+            "seed": 12345,
+            "proxy_server": "socks5://p:1080",
+            "proxy_username": "u",
+            "timezone": "Europe/London",
+            "locale": "en-GB",
+            "human_preset": "default",
+            "storage_quota_mb": 0,
+        },
+    )
     parsed = tomllib.loads(applied)
     assert parsed["identity"]["seed"] == 12345
     assert parsed["identity"]["storage_quota_mb"] == 0
@@ -724,10 +791,10 @@ def self_test() -> int:
     # A short value keeps its comment in the original column; a long one pushes it right
     # by exactly as much as it needs and no more.
     short = apply_settings(template, {"locale": "de"})
-    orig_col = [l.index("#") for l in template.splitlines() if l.startswith("locale")][0]
-    assert [l.index("#") for l in short.splitlines() if l.startswith("locale")][0] == orig_col
+    orig_col = next(ln.index("#") for ln in template.splitlines() if ln.startswith("locale"))
+    assert next(ln.index("#") for ln in short.splitlines() if ln.startswith("locale")) == orig_col
     long = apply_settings(template, {"locale": "x" * 200})
-    assert [l for l in long.splitlines() if l.startswith("locale")][0].count("  #") == 0
+    assert next(ln for ln in long.splitlines() if ln.startswith("locale")).count("  #") == 0
     # And the result must still drive a launch.
     kwargs, _ = derive(parsed)
     assert "--fingerprint=12345" in kwargs["args"]
@@ -741,15 +808,25 @@ def self_test() -> int:
         raise AssertionError("unknown key should have raised")
 
     def fake_args(**kw):
-        base = dict(proxy=None, proxy_user=None, timezone=None, locale=None,
-                    human_preset=None, storage_quota_mb=None)
+        base = {
+            "proxy": None,
+            "proxy_user": None,
+            "timezone": None,
+            "locale": None,
+            "human_preset": None,
+            "storage_quota_mb": None,
+        }
         return argparse.Namespace(**{**base, **kw})
 
     assert settings_from_args(fake_args()) == {}, "no flags must mean pure defaults"
     assert settings_from_args(fake_args(proxy="http://h:1"))["proxy_server"] == "http://h:1"
     assert settings_from_args(fake_args(proxy=""))["proxy_server"] == "", "'' clears the proxy"
-    for bad in (dict(proxy="h:1"), dict(timezone="London"), dict(locale="English"),
-                dict(storage_quota_mb=-1)):
+    for bad in (
+        {"proxy": "h:1"},
+        {"timezone": "London"},
+        {"locale": "English"},
+        {"storage_quota_mb": -1},
+    ):
         try:
             settings_from_args(fake_args(**bad))
         except PreflightError:
@@ -762,8 +839,9 @@ def self_test() -> int:
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description=__doc__,
-                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     ap.add_argument("--identity", help="identity name = directory under .stealth/")
     ap.add_argument("--root", default=".", help="project root holding .stealth/ (default: cwd)")
     ap.add_argument("--url", help="navigate here after launch")
@@ -771,22 +849,41 @@ def main() -> int:
     # Settings applied at --init. Omit them all for pure defaults, which are already the
     # strongest anti-recognition settings. On an EXISTING identity these retune it in
     # place, keeping the seed and every comment.
-    ap.add_argument("--proxy", metavar="URL",
-                    help="network.proxy_server (http/https/socks5, CONNECT-only); '' clears it")
-    ap.add_argument("--proxy-user", metavar="USER",
-                    help="network.proxy_username; password comes from STEALTH_PROXY_PASSWORD")
+    ap.add_argument(
+        "--proxy",
+        metavar="URL",
+        help="network.proxy_server (http/https/socks5, CONNECT-only); '' clears it",
+    )
+    ap.add_argument(
+        "--proxy-user",
+        metavar="USER",
+        help="network.proxy_username; password comes from STEALTH_PROXY_PASSWORD",
+    )
     ap.add_argument("--timezone", metavar="TZ", help="network.timezone, e.g. Europe/London")
     ap.add_argument("--locale", metavar="TAG", help="network.locale, e.g. en-GB")
-    ap.add_argument("--human-preset", choices=["default", "careful"],
-                    help="browser.human_preset (default: careful, from the template)")
-    ap.add_argument("--storage-quota-mb", type=int, metavar="MB",
-                    help="identity.storage_quota_mb; 0 leaves the binary's normalized value")
+    ap.add_argument(
+        "--human-preset",
+        choices=["default", "careful"],
+        help="browser.human_preset (default: careful, from the template)",
+    )
+    ap.add_argument(
+        "--storage-quota-mb",
+        type=int,
+        metavar="MB",
+        help="identity.storage_quota_mb; 0 leaves the binary's normalized value",
+    )
     ap.add_argument("--check", action="store_true", help="preflight only, do not launch")
-    ap.add_argument("--print-args", action="store_true",
-                    help="print the resolved launch kwargs and exit")
-    ap.add_argument("--no-canary", action="store_true",
-                    help="skip the pre-task canary even if profile.toml asks for it")
-    ap.add_argument("--force", action="store_true", help="ignore a stale lock file (never a live one)")
+    ap.add_argument(
+        "--print-args", action="store_true", help="print the resolved launch kwargs and exit"
+    )
+    ap.add_argument(
+        "--no-canary",
+        action="store_true",
+        help="skip the pre-task canary even if profile.toml asks for it",
+    )
+    ap.add_argument(
+        "--force", action="store_true", help="ignore a stale lock file (never a live one)"
+    )
     ap.add_argument("--self-test", action="store_true", help="pure logic checks, no browser")
     args = ap.parse_args()
 
@@ -803,10 +900,19 @@ def main() -> int:
         kwargs, notes = derive(cfg)
 
         if args.print_args:
-            print(json.dumps({"identity": args.identity, "dir": idir,
-                              "user_data_dir": os.path.join(idir, USER_DATA),
-                              "launch_persistent_context": kwargs, "notes": notes},
-                             indent=2, default=str))
+            print(
+                json.dumps(
+                    {
+                        "identity": args.identity,
+                        "dir": idir,
+                        "user_data_dir": os.path.join(idir, USER_DATA),
+                        "launch_persistent_context": kwargs,
+                        "notes": notes,
+                    },
+                    indent=2,
+                    default=str,
+                )
+            )
             return 0
         if args.check:
             preflight_runtime(idir)
@@ -814,7 +920,9 @@ def main() -> int:
                 print(f"NOTE: {note}", file=sys.stderr)
             print(f"STATUS identity: {idir}")
             print(f"STATUS seed: {cfg['identity']['seed']}")
-            print(f"STATUS baseline: {'present' if os.path.exists(os.path.join(idir, BASELINE_NAME)) else 'not yet written'}")
+            print(
+                f"STATUS baseline: {'present' if os.path.exists(os.path.join(idir, BASELINE_NAME)) else 'not yet written'}"
+            )
             print("RESULT: ok")
             return 0
 
@@ -822,9 +930,11 @@ def main() -> int:
         if want_canary and not args.no_canary:
             rc = run_canary(args.identity, args.root)
             if rc != 0:
-                print("PREFLIGHT: canary failed — not handing over the session. Fix the "
-                      "reported checks, or re-run with --no-canary to override deliberately.",
-                      file=sys.stderr)
+                print(
+                    "PREFLIGHT: canary failed — not handing over the session. Fix the "
+                    "reported checks, or re-run with --no-canary to override deliberately.",
+                    file=sys.stderr,
+                )
                 print("RESULT: fail")
                 return 1
 
@@ -833,7 +943,7 @@ def main() -> int:
         print(f"PREFLIGHT: {exc}", file=sys.stderr)
         print("RESULT: fail")
         return 1
-    except Exception as exc:  # noqa: BLE001 - surface any launch failure to the agent
+    except Exception as exc:
         print(f"LAUNCH-ERROR: {type(exc).__name__}: {exc}", file=sys.stderr)
         print("RESULT: fail")
         return 1

@@ -111,19 +111,20 @@ python3 -m cloakbrowser info --proxy "http://user:pass@host:port"
 That prints the exit IP, timezone and locale a real launch would apply. Then attach it to
 an identity with flags — never by hand-editing `profile.toml`:
 
-```bash
-python3 skills/playwright-stealth-identity/scripts/identity.py \
-    --identity eu-shop --init \
-    --proxy "http://host:port" --proxy-user "<user>" \
-    --timezone Europe/London --locale en-GB
+```text
+/playwright-stealth-identity create eu-shop behind http://host:port,
+timezone Europe/London, locale en-GB
 ```
+
+The skill binds the proxy after preflighting it and keeps the timezone and locale
+coherent with the exit IP — never hand-edit `profile.toml`.
 
 Then verify it end to end. This is the step people skip:
 
 ```bash
 # the password lives in the environment — never in profile.toml, never in argv
 export STEALTH_PROXY_PASSWORD='…'
-python3 skills/playwright-stealth/scripts/canary.py --identity eu-shop --check-egress
+/playwright-stealth run the canary for eu-shop and check the egress IP
 ```
 
 It compares the browser's clock against the live exit IP. It exists because a real London

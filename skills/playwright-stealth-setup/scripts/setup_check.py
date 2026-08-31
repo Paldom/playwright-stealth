@@ -24,6 +24,7 @@ Usage:
   python3 setup_check.py --fix-quarantine   # macOS only: clear Gatekeeper quarantine
   python3 setup_check.py --self-test        # scoring logic only, no network, no browser
 """
+
 from __future__ import annotations
 
 import argparse
@@ -90,30 +91,38 @@ def clear_quarantine() -> tuple[bool, str]:
     return True, f"cleared quarantine on {len(bundles)} bundle(s)"
 
 
-def evaluate(py_version: tuple[int, int], pkg_version: str | None, diag: dict | None,
-             info_error: str) -> tuple[list[dict], bool]:
+def evaluate(
+    py_version: tuple[int, int], pkg_version: str | None, diag: dict | None, info_error: str
+) -> tuple[list[dict], bool]:
     """Pure scoring: map raw probes to (status rows, all_required_ok). No I/O."""
     rows: list[dict] = []
 
     def add(component: str, state: str, detail: str = "", required: bool = True) -> None:
-        rows.append({"component": component, "state": state, "detail": detail,
-                     "required": required})
+        rows.append(
+            {"component": component, "state": state, "detail": detail, "required": required}
+        )
 
     ok = True
 
     if py_version >= MIN_PYTHON:
         add("python", "OK", ".".join(map(str, py_version)))
     else:
-        add("python", "FAIL",
+        add(
+            "python",
+            "FAIL",
             f"{'.'.join(map(str, py_version))} < {'.'.join(map(str, MIN_PYTHON))}"
-            " — profile.toml is read with stdlib tomllib")
+            " — profile.toml is read with stdlib tomllib",
+        )
         ok = False
 
     if pkg_version:
         add("cloakbrowser_pkg", "OK", pkg_version)
     else:
-        add("cloakbrowser_pkg", "MISSING",
-            "run with --install, or: pip install -U 'cloakbrowser[geoip]'")
+        add(
+            "cloakbrowser_pkg",
+            "MISSING",
+            "run with --install, or: pip install -U 'cloakbrowser[geoip]'",
+        )
         ok = False
 
     if diag is None:
@@ -131,9 +140,12 @@ def evaluate(py_version: tuple[int, int], pkg_version: str | None, diag: dict | 
     elif binary.get("installed"):
         add("binary", "OK", f"chromium {version} (licence tier: {lic}) at {binary.get('path')}")
     else:
-        add("binary", "MISSING",
+        add(
+            "binary",
+            "MISSING",
             f"chromium {version} would be used but is not downloaded (licence tier: {lic})"
-            " — run with --install")
+            " — run with --install",
+        )
         ok = False
 
     launch = diag.get("launch") or {}
@@ -149,26 +161,35 @@ def evaluate(py_version: tuple[int, int], pkg_version: str | None, diag: dict | 
         # SKIP is deliberately not a pass. An unproven binary must never report
         # RESULT: ok, or --quick becomes a way to claim a verified install without
         # ever executing the binary.
-        add("launch", "SKIP", f"{launch.get('reason') or 'not tested'} — not a pass; "
-                              "re-run without --quick to verify the binary executes")
+        add(
+            "launch",
+            "SKIP",
+            f"{launch.get('reason') or 'not tested'} — not a pass; "
+            "re-run without --quick to verify the binary executes",
+        )
         ok = False
 
     has_geoip = bool((diag.get("modules") or {}).get("geoip2"))
-    add("geoip_extra", "OK" if has_geoip else "WARN",
+    add(
+        "geoip_extra",
+        "OK" if has_geoip else "WARN",
         "" if has_geoip else "install 'cloakbrowser[geoip]' to derive timezone/locale from a proxy",
-        required=False)
+        required=False,
+    )
 
     return rows, ok
 
 
 def probe(quick: bool) -> tuple[list[dict], bool, dict | None]:
     from importlib import metadata
+
     try:
         pkg_version = metadata.version("cloakbrowser")
     except metadata.PackageNotFoundError:
         pkg_version = None
-    diag, info_error = (None, "cloakbrowser not installed") if not pkg_version \
-        else cloakbrowser_info(quick=quick)
+    diag, info_error = (
+        (None, "cloakbrowser not installed") if not pkg_version else cloakbrowser_info(quick=quick)
+    )
     rows, ok = evaluate(sys.version_info[:2], pkg_version, diag, info_error)
     return rows, ok, diag
 
@@ -218,7 +239,7 @@ def self_test() -> int:
     quick = dict(good, launch={"tested": False, "reason": "skipped (--quick)"})
     rows, ok = evaluate((3, 12), "0.5.8", quick, "")
     assert not ok
-    launch_row = [r for r in rows if r["component"] == "launch"][0]
+    launch_row = next(r for r in rows if r["component"] == "launch")
     assert launch_row["state"] == "SKIP" and "not a pass" in launch_row["detail"]
 
     # `info` exits 0 with nothing installed — the gate must still fail.
@@ -259,13 +280,20 @@ def self_test() -> int:
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description=__doc__,
-                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     ap.add_argument("--install", action="store_true", help="install/download missing components")
-    ap.add_argument("--quick", action="store_true",
-                    help="skip the launch test (fast + offline, but can never RESULT: ok)")
-    ap.add_argument("--fix-quarantine", action="store_true",
-                    help="macOS: clear the Gatekeeper quarantine flag on the downloaded binary")
+    ap.add_argument(
+        "--quick",
+        action="store_true",
+        help="skip the launch test (fast + offline, but can never RESULT: ok)",
+    )
+    ap.add_argument(
+        "--fix-quarantine",
+        action="store_true",
+        help="macOS: clear the Gatekeeper quarantine flag on the downloaded binary",
+    )
     ap.add_argument("--json", action="store_true", help="emit the report as JSON")
     ap.add_argument("--self-test", action="store_true", help="scoring logic only, no network")
     args = ap.parse_args()

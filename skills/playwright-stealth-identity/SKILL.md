@@ -1,6 +1,6 @@
 ---
 name: playwright-stealth-identity
-description: Creates or retunes one CloakBrowser stealth identity per account under .stealth/<name>/ — rolls a unique fingerprint seed, binds a proxy after preflighting it, fixes timezone and locale coherence. Use for setting up, creating, or reconfiguring a stealth identity or browser profile for an account. Not for installing the toolchain, or for browsing, logging in, or canary-testing a session.
+description: Creates or retunes one CloakBrowser stealth identity per account under .stealth/<name>/ — rolls a unique fingerprint seed, binds a proxy after preflighting it, fixes timezone and locale coherence. Use to set up, create, reconfigure or retune a stealth identity or browser profile for an account, or change its locale or timezone. Not for installing the toolchain, or for browsing, logging in, or canary-testing a session.
 license: MIT
 ---
 

@@ -1,6 +1,6 @@
 ---
 name: playwright-stealth
-description: Browses, logs in, and automates sites in a headful, humanized CloakBrowser stealth session on an existing pinned identity, then self-verifies against a baseline. Use when the user wants to browse or automate a site stealthily or 'like a human', resume a saved session, or run the canary. Not for installing the toolchain, creating an identity, replaying a saved job, or writing Playwright tests.
+description: Browses, logs in and automates sites in a headful, humanized CloakBrowser session on an existing pinned identity. Use to open the stealth browser and visit a URL, automate a site 'like a human', reuse the same fingerprint and session as last time, or run the canary. Not for installing the toolchain, creating an identity, or replaying a saved job.
 license: MIT
 ---
 

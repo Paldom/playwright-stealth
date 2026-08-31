@@ -38,6 +38,7 @@ Usage:
 
 Exit codes: 0 = every required check passed, 1 = a required check failed, 2 = error.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -50,7 +51,7 @@ import sys
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from launch import (  # noqa: E402  - deliberate: the launcher owns the identity contract
+from launch import (
     BASELINE_NAME,
     PreflightError,
     identity_dir,
@@ -61,7 +62,9 @@ from launch import (  # noqa: E402  - deliberate: the launcher owns the identity
 SOFTWARE_GPU = re.compile(r"swiftshader|llvmpipe|software|basic render|microsoft basic", re.I)
 AUTOMATION_KEY = re.compile(
     r"cdc_|__playwright|__pwInitScripts|_selenium|__selenium|__webdriver|__driver|"
-    r"_phantom|callPhantom|domAutomation", re.I)
+    r"_phantom|callPhantom|domAutomation",
+    re.I,
+)
 MARKER_COOKIE = "stealth_canary_marker"
 MARKER_URL = "https://example.com/"
 # Only fetched under --check-egress. Returns {ip, country, city, timezone, ...}, which is
@@ -69,8 +72,18 @@ MARKER_URL = "https://example.com/"
 EGRESS_URL = "https://ipinfo.io/json"
 # Fields compared against the baseline. Only canvasHash is a required match; the rest
 # are advisory because a legitimate OS or display change moves them.
-DRIFT_FIELDS = ("canvasHash", "webglVendor", "webglRenderer", "userAgent", "platform",
-                "languages", "hardwareConcurrency", "deviceMemory", "timezone", "screen")
+DRIFT_FIELDS = (
+    "canvasHash",
+    "webglVendor",
+    "webglRenderer",
+    "userAgent",
+    "platform",
+    "languages",
+    "hardwareConcurrency",
+    "deviceMemory",
+    "timezone",
+    "screen",
+)
 
 PROBE_JS = r"""
 () => {
@@ -118,10 +131,24 @@ PROBE_JS = r"""
 
 # Keys score()/fingerprint_of() read that must be produced by PROBE_JS. Asserted by the
 # self-test so a future edit cannot silently desync the probe from the scorer.
-PROBE_KEYS = ("webdriver", "webdriverGetterNative", "automationGlobals", "userAgent",
-              "platform", "languages", "hardwareConcurrency", "deviceMemory",
-              "hasWindowChrome", "pluginCount", "timezone", "screen", "webglVendor",
-              "webglRenderer", "canvasA", "canvasB")
+PROBE_KEYS = (
+    "webdriver",
+    "webdriverGetterNative",
+    "automationGlobals",
+    "userAgent",
+    "platform",
+    "languages",
+    "hardwareConcurrency",
+    "deviceMemory",
+    "hasWindowChrome",
+    "pluginCount",
+    "timezone",
+    "screen",
+    "webglVendor",
+    "webglRenderer",
+    "canvasA",
+    "canvasB",
+)
 
 HINTS_JS = r"""
 async () => {
@@ -150,103 +177,171 @@ def fingerprint_of(raw: dict) -> dict:
     }
 
 
-def score(raw: dict, baseline: dict | None, versions: dict, strict: bool = False
-          ) -> tuple[list[dict], dict, bool]:
+def score(
+    raw: dict, baseline: dict | None, versions: dict, strict: bool = False
+) -> tuple[list[dict], dict, bool]:
     """Pure scoring: raw probe + baseline -> (results, fingerprint, ok). No I/O."""
     results: list[dict] = []
 
     def add(name: str, level: str, ok: bool, detail: str = "") -> None:
-        results.append({"check": name, "level": level, "detail": detail,
-                        "status": "PASS" if ok else ("FAIL" if level == "required" else "WARN")})
+        results.append(
+            {
+                "check": name,
+                "level": level,
+                "detail": detail,
+                "status": "PASS" if ok else ("FAIL" if level == "required" else "WARN"),
+            }
+        )
 
     fp = fingerprint_of(raw)
     base_fp = (baseline or {}).get("fingerprint") or {}
 
     # --- required ---------------------------------------------------------------
-    add("navigator.webdriver is false", "required", raw.get("webdriver") is False,
-        f"value={raw.get('webdriver')!r}")
+    add(
+        "navigator.webdriver is false",
+        "required",
+        raw.get("webdriver") is False,
+        f"value={raw.get('webdriver')!r}",
+    )
     native = raw.get("webdriverGetterNative")
-    add("webdriver getter is native", "required", native is True,
-        "reads [native code]" if native else
-        f"getter is JS-patched or unreadable ({native!r}) — a patched getter is a stronger "
-        "tell than the original value")
+    add(
+        "webdriver getter is native",
+        "required",
+        native is True,
+        "reads [native code]"
+        if native
+        else f"getter is JS-patched or unreadable ({native!r}) — a patched getter is a stronger "
+        "tell than the original value",
+    )
     globs = raw.get("automationGlobals") or []
     add("no automation globals", "required", not globs, f"found={globs}")
 
     stable = bool(raw.get("canvasA")) and raw.get("canvasA") == raw.get("canvasB")
-    add("canvas hash stable in-session", "required", stable,
-        "identical across two draws" if stable else
-        "two draws of the same scene differ — a per-call noise injector is active, which "
-        "is itself abnormal for Chromium")
+    add(
+        "canvas hash stable in-session",
+        "required",
+        stable,
+        "identical across two draws"
+        if stable
+        else "two draws of the same scene differ — a per-call noise injector is active, which "
+        "is itself abnormal for Chromium",
+    )
 
     if not base_fp:
-        add("canvas hash matches baseline", "advisory", True,
-            "no baseline in effect — this run becomes the reference")
+        add(
+            "canvas hash matches baseline",
+            "advisory",
+            True,
+            "no baseline in effect — this run becomes the reference",
+        )
     else:
         matches = fp["canvasHash"] == base_fp.get("canvasHash")
         if matches:
             add("canvas hash matches baseline", "required", True, fp["canvasHash"])
         else:
-            changed = [k for k in ("wrapper", "binary")
-                       if versions.get(k) and (baseline or {}).get(k) and versions[k] != baseline[k]]
-            hint = (f"{'/'.join(changed)} version changed "
-                    f"({', '.join(f'{k}: {baseline[k]} -> {versions[k]}' for k in changed)}) "
-                    "— a reviewed re-baseline is expected: re-run with --rebaseline"
-                    if changed else
-                    "with no version change this means the seed is NOT holding: check that "
-                    "identity.seed is set and that launch goes through launch.py")
-            add("canvas hash matches baseline", "required", False,
-                f"{base_fp.get('canvasHash')} -> {fp['canvasHash']}; {hint}")
+            changed = [
+                k
+                for k in ("wrapper", "binary")
+                if versions.get(k) and (baseline or {}).get(k) and versions[k] != baseline[k]
+            ]
+            hint = (
+                f"{'/'.join(changed)} version changed "
+                f"({', '.join(f'{k}: {baseline[k]} -> {versions[k]}' for k in changed)}) "
+                "— a reviewed re-baseline is expected: re-run with --rebaseline"
+                if changed
+                else "with no version change this means the seed is NOT holding: check that "
+                "identity.seed is set and that launch goes through launch.py"
+            )
+            add(
+                "canvas hash matches baseline",
+                "required",
+                False,
+                f"{base_fp.get('canvasHash')} -> {fp['canvasHash']}; {hint}",
+            )
 
     gpu = raw.get("webglRenderer")
-    add("WebGL renderer is hardware", "required", bool(gpu) and not SOFTWARE_GPU.search(gpu),
-        gpu or "renderer unreadable")
+    add(
+        "WebGL renderer is hardware",
+        "required",
+        bool(gpu) and not SOFTWARE_GPU.search(gpu),
+        gpu or "renderer unreadable",
+    )
 
     wheel = raw.get("wheelTrusted")
     if wheel is True or wheel is False:
         add("wheel input is trusted", "required", wheel is True, f"isTrusted={wheel}")
     else:
         # Never silently drop a required check: surface it loudly instead.
-        add("wheel input measured", "advisory", False,
+        add(
+            "wheel input measured",
+            "advisory",
+            False,
             f"could not measure wheel isTrusted ({wheel!r}) — re-run, and never scroll with "
-            "JS scrollTo/scrollBy")
+            "JS scrollTo/scrollBy",
+        )
 
     # --- advisory ---------------------------------------------------------------
-    ua = (raw.get("userAgent") or "")
+    ua = raw.get("userAgent") or ""
     ua_l = ua.lower()
     hints = raw.get("clientHints")
     if isinstance(hints, dict) and not hints.get("error"):
         claimed = str(hints.get("platform") or "").lower()
-        coherent = bool(claimed) and (claimed[:3] in ua_l or
-                                      (claimed == "macos" and "mac os" in ua_l))
-        add("Client Hints match the user agent", "advisory", coherent,
-            f"UA-CH platform={hints.get('platform')!r} vs UA {ua[:60]!r}")
+        coherent = bool(claimed) and (
+            claimed[:3] in ua_l or (claimed == "macos" and "mac os" in ua_l)
+        )
+        add(
+            "Client Hints match the user agent",
+            "advisory",
+            coherent,
+            f"UA-CH platform={hints.get('platform')!r} vs UA {ua[:60]!r}",
+        )
     elif hints is None:
         # navigator.userAgentData is secure-context only and about:blank has an opaque
         # origin, so the API is simply absent here. That is a property of where we
         # measure, not a browser defect — reporting it as a warning would make an
         # advisory that can never pass. The UA/platform check below covers the same
         # coherence question without needing a secure context.
-        add("Client Hints", "advisory", True,
+        add(
+            "Client Hints",
+            "advisory",
+            True,
             "navigator.userAgentData not exposed on about:blank (non-secure context) — "
-            "UA/platform coherence checked instead")
+            "UA/platform coherence checked instead",
+        )
     else:
-        add("Client Hints readable", "advisory", False,
-            f"getHighEntropyValues threw -> {hints!r}")
+        add("Client Hints readable", "advisory", False, f"getHighEntropyValues threw -> {hints!r}")
 
     plat = (raw.get("platform") or "").lower()
-    seam = (("windows" in ua_l or "win64" in ua_l) and not plat.startswith("win")) or \
-           ("mac os" in ua_l and not plat.startswith("mac")) or \
-           ("linux" in ua_l and "android" not in ua_l and not plat.startswith("linux"))
-    add("user agent matches navigator.platform", "advisory", not seam,
-        f"platform={raw.get('platform')!r} vs UA {ua[:60]!r}")
+    seam = (
+        (("windows" in ua_l or "win64" in ua_l) and not plat.startswith("win"))
+        or ("mac os" in ua_l and not plat.startswith("mac"))
+        or ("linux" in ua_l and "android" not in ua_l and not plat.startswith("linux"))
+    )
+    add(
+        "user agent matches navigator.platform",
+        "advisory",
+        not seam,
+        f"platform={raw.get('platform')!r} vs UA {ua[:60]!r}",
+    )
 
-    add("window.chrome present", "advisory", bool(raw.get("hasWindowChrome")),
-        str(raw.get("hasWindowChrome")))
-    add("plugin list non-empty", "advisory", (raw.get("pluginCount") or 0) > 0,
-        f"{raw.get('pluginCount')} plugins")
-    add("hardwareConcurrency plausible", "advisory", (raw.get("hardwareConcurrency") or 0) > 0,
-        str(raw.get("hardwareConcurrency")))
+    add(
+        "window.chrome present",
+        "advisory",
+        bool(raw.get("hasWindowChrome")),
+        str(raw.get("hasWindowChrome")),
+    )
+    add(
+        "plugin list non-empty",
+        "advisory",
+        (raw.get("pluginCount") or 0) > 0,
+        f"{raw.get('pluginCount')} plugins",
+    )
+    add(
+        "hardwareConcurrency plausible",
+        "advisory",
+        (raw.get("hardwareConcurrency") or 0) > 0,
+        str(raw.get("hardwareConcurrency")),
+    )
 
     # The check that actually catches a mis-set proxy. geoip=True derives the timezone
     # from a GeoIP database, and that database can simply be wrong: a real commodity
@@ -255,27 +350,40 @@ def score(raw: dict, baseline: dict | None, versions: dict, strict: bool = False
     egress = raw.get("egress")
     if isinstance(egress, dict) and egress.get("timezone"):
         browser_tz = raw.get("timezone")
-        add("browser timezone matches the real exit IP", "advisory",
+        add(
+            "browser timezone matches the real exit IP",
+            "advisory",
             browser_tz == egress["timezone"],
             f"exit {egress.get('ip')} ({egress.get('country')}/{egress.get('city')}) is "
             f"{egress['timezone']}, browser says {browser_tz} — set network.timezone "
-            f"explicitly to override geoip" if browser_tz != egress["timezone"] else
-            f"{browser_tz} at exit {egress.get('ip')} ({egress.get('country')})")
+            f"explicitly to override geoip"
+            if browser_tz != egress["timezone"]
+            else f"{browser_tz} at exit {egress.get('ip')} ({egress.get('country')})",
+        )
     elif isinstance(egress, dict) and egress.get("error"):
         add("egress lookup", "advisory", False, str(egress["error"]))
 
     expected_tz = versions.get("expected_timezone")
     if expected_tz:
-        add("timezone matches the configured egress", "advisory",
+        add(
+            "timezone matches the configured egress",
+            "advisory",
             raw.get("timezone") == expected_tz,
-            f"browser={raw.get('timezone')!r} configured={expected_tz!r}")
+            f"browser={raw.get('timezone')!r} configured={expected_tz!r}",
+        )
 
     if base_fp:
-        drifted = [k for k in DRIFT_FIELDS
-                   if k != "canvasHash" and k in base_fp and base_fp[k] != fp[k]]
-        add("no other fingerprint drift", "advisory", not drifted,
-            "identical to baseline" if not drifted else
-            "; ".join(f"{k}: {base_fp[k]!r} -> {fp[k]!r}" for k in drifted))
+        drifted = [
+            k for k in DRIFT_FIELDS if k != "canvasHash" and k in base_fp and base_fp[k] != fp[k]
+        ]
+        add(
+            "no other fingerprint drift",
+            "advisory",
+            not drifted,
+            "identical to baseline"
+            if not drifted
+            else "; ".join(f"{k}: {base_fp[k]!r} -> {fp[k]!r}" for k in drifted),
+        )
         marker = raw.get("markerCookie")
         # Deliberately narrow wording. This marker carries an explicit one-year expiry, so
         # it only ever proves the cookie FILE round-trips. It says nothing about whether
@@ -283,10 +391,15 @@ def score(raw: dict, baseline: dict | None, versions: dict, strict: bool = False
         # session cookie (is_persistent=0), which Chromium drops on close by design. An
         # earlier label here read "marker cookie survived the last run", which was taken
         # as proof of a durable login and was not.
-        add("persistent-cookie storage works", "advisory", marker is True,
+        add(
+            "persistent-cookie storage works",
+            "advisory",
+            marker is True,
             "the cookie file round-trips (NOT proof of a live login — session cookies "
-            "still die on close)" if marker is True else
-            f"marker missing ({marker!r}) — cookies are not persisting to user-data/ at all")
+            "still die on close)"
+            if marker is True
+            else f"marker missing ({marker!r}) — cookies are not persisting to user-data/ at all",
+        )
 
     # There is deliberately NO "logins survive a restart" row here. The canary launches its
     # own browser, so any session cookie from the previous run is already deleted before it
@@ -311,7 +424,7 @@ def probe_egress(ctx) -> dict:
         page.wait_for_timeout(1500)
         data = json.loads(page.evaluate("() => document.body.innerText"))
         return {k: data.get(k) for k in ("ip", "country", "city", "timezone")}
-    except Exception as exc:  # noqa: BLE001 - a lookup failure must not fail the canary
+    except Exception as exc:
         return {"error": f"{type(exc).__name__}: {exc}"}
     finally:
         with contextlib.suppress(Exception):
@@ -333,8 +446,16 @@ def probe(ctx, check_egress: bool = False) -> dict:
         if not raw["markerCookie"]:
             # Must carry an explicit expiry: a session cookie would vanish on close and
             # the durability check would then fail on every run for the wrong reason.
-            ctx.add_cookies([{"name": MARKER_COOKIE, "value": "1", "url": MARKER_URL,
-                              "expires": time.time() + 365 * 24 * 3600}])
+            ctx.add_cookies(
+                [
+                    {
+                        "name": MARKER_COOKIE,
+                        "value": "1",
+                        "url": MARKER_URL,
+                        "expires": time.time() + 365 * 24 * 3600,
+                    }
+                ]
+            )
     finally:
         page.close()
     if check_egress:
@@ -356,35 +477,36 @@ def measure_wheel(page, attempts: int = 2):
               window.addEventListener('wheel', e => { window.__stealthWheel = e.isTrusted; },
                                       {once: true, passive: true});
             }""")
-            page.mouse.move(200, 200)          # put the pointer over the viewport
+            page.mouse.move(200, 200)  # put the pointer over the viewport
             page.mouse.wheel(0, 120)
             page.wait_for_function("() => window.__stealthWheel !== null", timeout=5000)
             return page.evaluate(
-                "() => { const v = window.__stealthWheel; delete window.__stealthWheel; return v; }")
-        except Exception:  # noqa: BLE001 - retry once, then let score() surface it
+                "() => { const v = window.__stealthWheel; delete window.__stealthWheel; return v; }"
+            )
+        except Exception:
             if attempt == attempts - 1:
                 return "unmeasured"
     return "unmeasured"  # pragma: no cover - unreachable, keeps the return type honest
 
 
 def with_suppress(page, js: str) -> None:
-    try:
+    with contextlib.suppress(Exception):
         page.evaluate(js)
-    except Exception:  # noqa: BLE001 - best-effort cleanup only
-        pass
 
 
 def versions_now(cfg: dict) -> dict:
     from importlib import metadata
+
     out: dict = {"seed": (cfg.get("identity") or {}).get("seed")}
     try:
         out["wrapper"] = metadata.version("cloakbrowser")
-    except Exception:  # noqa: BLE001
+    except Exception:
         out["wrapper"] = None
     try:
         from cloakbrowser import binary_info
+
         out["binary"] = (binary_info() or {}).get("version")
-    except Exception:  # noqa: BLE001
+    except Exception:
         out["binary"] = None
     tz = ((cfg.get("network") or {}).get("timezone") or "").strip()
     if tz:
@@ -393,8 +515,12 @@ def versions_now(cfg: dict) -> dict:
 
 
 def write_baseline(path: str, fp: dict, versions: dict) -> None:
-    payload = {"seed": versions.get("seed"), "wrapper": versions.get("wrapper"),
-               "binary": versions.get("binary"), "fingerprint": fp}
+    payload = {
+        "seed": versions.get("seed"),
+        "wrapper": versions.get("wrapper"),
+        "binary": versions.get("binary"),
+        "fingerprint": fp,
+    }
     tmp = path + ".tmp"
     with open(tmp, "w", encoding="utf-8") as fh:
         json.dump(payload, fh, indent=2, sort_keys=True, default=str)
@@ -404,15 +530,24 @@ def write_baseline(path: str, fp: dict, versions: dict) -> None:
 
 def self_test() -> int:
     clean = {
-        "webdriver": False, "webdriverGetterNative": True, "automationGlobals": [],
+        "webdriver": False,
+        "webdriverGetterNative": True,
+        "automationGlobals": [],
         "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Chrome/150.0.0.0",
-        "platform": "MacIntel", "languages": ["en-US", "en"], "hardwareConcurrency": 8,
-        "deviceMemory": 8, "hasWindowChrome": True, "pluginCount": 5,
+        "platform": "MacIntel",
+        "languages": ["en-US", "en"],
+        "hardwareConcurrency": 8,
+        "deviceMemory": 8,
+        "hasWindowChrome": True,
+        "pluginCount": 5,
         "timezone": "Europe/Budapest",
         "screen": {"width": 1440, "height": 900, "devicePixelRatio": 2},
-        "webglVendor": "Apple", "webglRenderer": "Apple M1 Pro",
-        "canvasA": "data:image/png;base64,AAA", "canvasB": "data:image/png;base64,AAA",
-        "wheelTrusted": True, "clientHints": {"platform": "macOS", "architecture": "arm"},
+        "webglVendor": "Apple",
+        "webglRenderer": "Apple M1 Pro",
+        "canvasA": "data:image/png;base64,AAA",
+        "canvasB": "data:image/png;base64,AAA",
+        "wheelTrusted": True,
+        "clientHints": {"platform": "macOS", "architecture": "arm"},
         "markerCookie": True,
     }
     versions = {"seed": 123, "wrapper": "0.5.8", "binary": "150.0.0.1"}
@@ -421,40 +556,51 @@ def self_test() -> int:
     assert ok, res
     assert not any(r["status"] == "FAIL" for r in res)
     # First run must not fail for lack of a baseline, and must say it is the reference.
-    assert any(r["check"] == "canvas hash matches baseline" and r["level"] == "advisory"
-               for r in res)
+    assert any(
+        r["check"] == "canvas hash matches baseline" and r["level"] == "advisory" for r in res
+    )
 
     baseline = {"seed": 123, "wrapper": "0.5.8", "binary": "150.0.0.1", "fingerprint": fp}
     res, _, ok = score(clean, baseline, versions)
-    assert ok and any(r["check"] == "canvas hash matches baseline" and r["status"] == "PASS"
-                      for r in res)
+    assert ok and any(
+        r["check"] == "canvas hash matches baseline" and r["status"] == "PASS" for r in res
+    )
 
     # Seed not holding: same versions, different canvas -> required failure, blunt message.
     drifted = dict(clean, canvasA="data:image/png;base64,BBB", canvasB="data:image/png;base64,BBB")
     res, _, ok = score(drifted, baseline, versions)
     assert not ok
-    msg = [r for r in res if r["check"] == "canvas hash matches baseline"][0]
+    msg = next(r for r in res if r["check"] == "canvas hash matches baseline")
     assert msg["status"] == "FAIL" and "seed is NOT holding" in msg["detail"]
 
     # Same drift after a binary upgrade: still a required failure, but points at --rebaseline.
     res, _, ok = score(drifted, baseline, dict(versions, binary="151.0.0.1"))
     assert not ok
-    msg = [r for r in res if r["check"] == "canvas hash matches baseline"][0]
+    msg = next(r for r in res if r["check"] == "canvas hash matches baseline")
     assert "--rebaseline" in msg["detail"] and "150.0.0.1 -> 151.0.0.1" in msg["detail"]
 
     # A jittering canvas fails even with no baseline at all.
     _, _, ok = score(dict(clean, canvasB="data:image/png;base64,ZZZ"), None, versions)
     assert not ok
 
-    dirty = dict(clean, webdriver=True, webdriverGetterNative=False,
-                 automationGlobals=["cdc_asdjflasutopfhvcZLmcfl_"],
-                 webglRenderer="Google SwiftShader", wheelTrusted=False)
+    dirty = dict(
+        clean,
+        webdriver=True,
+        webdriverGetterNative=False,
+        automationGlobals=["cdc_asdjflasutopfhvcZLmcfl_"],
+        webglRenderer="Google SwiftShader",
+        wheelTrusted=False,
+    )
     res, _, ok = score(dirty, baseline, versions)
     assert not ok
     fails = {r["check"] for r in res if r["status"] == "FAIL"}
-    assert {"navigator.webdriver is false", "webdriver getter is native",
-            "no automation globals", "WebGL renderer is hardware",
-            "wheel input is trusted"} <= fails
+    assert {
+        "navigator.webdriver is false",
+        "webdriver getter is native",
+        "no automation globals",
+        "WebGL renderer is hardware",
+        "wheel input is trusted",
+    } <= fails
 
     # An unmeasured wheel is advisory but must be visible, and never a silent skip.
     res, _, ok = score(dict(clean, wheelTrusted="unmeasured"), baseline, versions)
@@ -467,15 +613,18 @@ def self_test() -> int:
     # Advisory drift warns but does not fail; --strict escalates it.
     moved = dict(clean, hardwareConcurrency=16)
     res, _, ok = score(moved, baseline, versions)
-    assert ok and any(r["check"] == "no other fingerprint drift" and r["status"] == "WARN"
-                      for r in res)
+    assert ok and any(
+        r["check"] == "no other fingerprint drift" and r["status"] == "WARN" for r in res
+    )
     _, _, ok_strict = score(moved, baseline, versions, strict=True)
     assert not ok_strict
 
     # Timezone coherence is only judged when the profile asks for a specific zone.
     res, _, _ = score(clean, baseline, dict(versions, expected_timezone="America/New_York"))
-    assert any(r["check"] == "timezone matches the configured egress" and r["status"] == "WARN"
-               for r in res)
+    assert any(
+        r["check"] == "timezone matches the configured egress" and r["status"] == "WARN"
+        for r in res
+    )
 
     # navigator.userAgentData is secure-context only, so it is ALWAYS absent on
     # about:blank. That must read as an informational pass, not a permanent warning
@@ -485,26 +634,41 @@ def self_test() -> int:
     assert any(r["check"] == "Client Hints" and r["status"] == "PASS" for r in res)
     # An API that is present but throws is a different thing and still warns.
     res, _, ok = score(dict(clean, clientHints={"error": "NotAllowedError"}), baseline, versions)
-    assert ok and any(r["check"] == "Client Hints readable" and r["status"] == "WARN"
-                      for r in res)
+    assert ok and any(r["check"] == "Client Hints readable" and r["status"] == "WARN" for r in res)
 
     # Egress coherence. This is the check that caught a real commodity proxy whose
     # London exit IP had a geoip lookup setting the browser clock to America/Chicago.
-    seam = dict(clean, timezone="America/Chicago",
-                egress={"ip": "203.0.113.47", "country": "GB", "city": "London",
-                        "timezone": "Europe/London"})
+    seam = dict(
+        clean,
+        timezone="America/Chicago",
+        egress={
+            "ip": "203.0.113.47",
+            "country": "GB",
+            "city": "London",
+            "timezone": "Europe/London",
+        },
+    )
     res, _, ok = score(seam, baseline, versions)
     assert ok, "an egress mismatch is advisory, not a hard failure"
-    row = [r for r in res if r["check"] == "browser timezone matches the real exit IP"][0]
+    row = next(r for r in res if r["check"] == "browser timezone matches the real exit IP")
     assert row["status"] == "WARN" and "America/Chicago" in row["detail"]
     _, _, ok_strict = score(seam, baseline, versions, strict=True)
     assert not ok_strict
-    matched = dict(clean, timezone="Europe/London",
-                   egress={"ip": "203.0.113.47", "country": "GB", "city": "London",
-                           "timezone": "Europe/London"})
+    matched = dict(
+        clean,
+        timezone="Europe/London",
+        egress={
+            "ip": "203.0.113.47",
+            "country": "GB",
+            "city": "London",
+            "timezone": "Europe/London",
+        },
+    )
     res, _, _ = score(matched, baseline, versions)
-    assert any(r["check"] == "browser timezone matches the real exit IP" and
-               r["status"] == "PASS" for r in res)
+    assert any(
+        r["check"] == "browser timezone matches the real exit IP" and r["status"] == "PASS"
+        for r in res
+    )
     # A failed lookup is reported, never silently treated as agreement.
     res, _, _ = score(dict(clean, egress={"error": "TimeoutError"}), baseline, versions)
     assert any(r["check"] == "egress lookup" and r["status"] == "WARN" for r in res)
@@ -513,20 +677,25 @@ def self_test() -> int:
     assert not any("exit IP" in r["check"] for r in res)
 
     # UA/platform coherence works without a secure context, and catches a real seam.
-    res, _, _ = score(dict(clean, userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-                           platform="MacIntel"), baseline, versions)
-    assert any(r["check"] == "user agent matches navigator.platform" and r["status"] == "WARN"
-               for r in res)
+    res, _, _ = score(
+        dict(clean, userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64)", platform="MacIntel"),
+        baseline,
+        versions,
+    )
+    assert any(
+        r["check"] == "user agent matches navigator.platform" and r["status"] == "WARN" for r in res
+    )
     res, _, _ = score(clean, baseline, versions)
-    assert any(r["check"] == "user agent matches navigator.platform" and r["status"] == "PASS"
-               for r in res)
+    assert any(
+        r["check"] == "user agent matches navigator.platform" and r["status"] == "PASS" for r in res
+    )
 
     # Login durability. The marker only ever proves the cookie FILE round-trips, so its
     # wording must not imply a live session — that overclaim is what made a logged-out
     # profile read as healthy. The session-only-host check is the real signal.
     res, _, ok = score(clean, baseline, versions, strict=True)
     assert ok
-    marker_row = [r for r in res if r["check"] == "persistent-cookie storage works"][0]
+    marker_row = next(r for r in res if r["check"] == "persistent-cookie storage works")
     assert "NOT proof of a live login" in marker_row["detail"]
     assert not any(r["check"].startswith("marker cookie survived") for r in res)
     # The durability row belongs to launch.py, not here — see the comment in score().
@@ -547,15 +716,22 @@ def self_test() -> int:
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description=__doc__,
-                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     ap.add_argument("--identity", help="identity name under .stealth/")
     ap.add_argument("--root", default=".", help="project root holding .stealth/ (default: cwd)")
-    ap.add_argument("--rebaseline", action="store_true",
-                    help="overwrite baseline.json with this run (use after a reviewed upgrade)")
-    ap.add_argument("--check-egress", action="store_true",
-                    help="also resolve the live exit IP and compare its timezone to the "
-                         "browser's (the check that catches a wrong geoip lookup)")
+    ap.add_argument(
+        "--rebaseline",
+        action="store_true",
+        help="overwrite baseline.json with this run (use after a reviewed upgrade)",
+    )
+    ap.add_argument(
+        "--check-egress",
+        action="store_true",
+        help="also resolve the live exit IP and compare its timezone to the "
+        "browser's (the check that catches a wrong geoip lookup)",
+    )
     ap.add_argument("--strict", action="store_true", help="advisory warnings also fail the run")
     ap.add_argument("--json", action="store_true", help="emit the scorecard as JSON")
     ap.add_argument("--self-test", action="store_true", help="scoring logic only, no browser")
@@ -581,7 +757,7 @@ def main() -> int:
         print(f"PREFLIGHT: {exc}", file=sys.stderr)
         print("RESULT: fail")
         return 1
-    except Exception as exc:  # noqa: BLE001 - surface any probe failure to the agent
+    except Exception as exc:
         print(f"CANARY-ERROR: {type(exc).__name__}: {exc}", file=sys.stderr)
         print("RESULT: error")
         return 2
@@ -592,8 +768,13 @@ def main() -> int:
         print(f"STATUS baseline: {'rewritten' if args.rebaseline else 'written'} {baseline_path}")
 
     if args.json:
-        print(json.dumps({"results": results, "fingerprint": fp, "versions": versions,
-                          "ok": ok}, indent=2, default=str))
+        print(
+            json.dumps(
+                {"results": results, "fingerprint": fp, "versions": versions, "ok": ok},
+                indent=2,
+                default=str,
+            )
+        )
     else:
         for r in results:
             print(f"[{r['status']:4}] {r['level']:8} {r['check']} — {r['detail']}")
