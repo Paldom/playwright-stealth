@@ -4,7 +4,8 @@ What may be committed, what must never be, and what a run leaves behind.
 
 **Contents:** [The split](#the-split-committed-code-gitignored-everything-else) ·
 [Secrets](#secrets) · [Why jobs should not log in](#why-jobs-should-not-log-in) ·
-[Run artefacts](#run-artefacts) · [Retention](#retention) ·
+[Run artefacts](#run-artefacts) · [What leaves the machine](#what-leaves-the-machine) ·
+[Retention](#retention) ·
 [Traceability](#traceability) · [Authorized use](#authorized-use)
 
 ## The split: committed code, gitignored everything else
@@ -18,6 +19,8 @@ What may be committed, what must never be, and what a run leaves behind.
       manifest.json                            seed, sha, steps, outcome
       result.json                              whatever the job returned
       failure.png / failure.html / url.txt     failures only
+      failure.json                             failures only — title, url, status, visible text
+      diagnosis.json                           written by pagestate.py --run, on request
       trace.zip                                failures only, unless --keep-trace
 ```
 
@@ -87,14 +90,32 @@ entirely, and MFA usually needs a human anyway.
 Every run writes a directory under `.stealth/<identity>/runs/<job>/<timestamp>/`.
 
 `manifest.json` is the record: identity, job, ok, **seed**, `job_sha256`, duration, error,
-and the ordered step log. The seed is what makes a past run reproducible; the sha is what
-tells you which version of the job produced it.
+the HTTP status of the last document load, and the ordered step log. The seed is what
+makes a past run reproducible; the sha is what tells you which version of the job
+produced it.
 
 **Run artefacts are secret-bearing.** A screenshot catches whatever was on screen — an
 account name, an invoice total, a password manager dropdown. A trace embeds DOM snapshots
 and network data including POSTed form values. `result.json` is the extracted data itself,
 which is often the most sensitive thing in the whole tree. All of it lives under `.stealth/`
 and is gitignored for that reason. Do not move it out.
+
+## What leaves the machine
+
+Replay makes no model call: the only network traffic a `--run` produces is the browser's
+own, through whatever proxy the identity binds. The one thing in this skill that talks to
+a model is `pagestate.py --run <dir>` without `--offline`, which you invoke by hand on a
+failed run after the user has agreed to it. If its offline signatures do not match and
+`TYPESAFE_API_KEY` is set, it sends one request (retried once on a 429/529) to
+`api.typesafe.ai` carrying the failure page's title and at most 2,000 characters of its
+visible text — URLs, emails and runs of four or more digits masked — plus its
+password-field count and the host and first path segment of each visible iframe. It
+refuses redirects, so the key cannot follow one elsewhere. It never sends the page URL,
+cookies, field values, the screenshot or the HTML, and it never runs on a successful run.
+`diagnosis.json` stores the label, source, probabilities, confidence, model version and
+HTTP status — not the text or the title. TypeSafe states it does not train on requests;
+its retention terms are its own, so treat the call as sharing a redacted excerpt with a
+third party and skip it for a page you would not paste into a support ticket.
 
 ## Retention
 

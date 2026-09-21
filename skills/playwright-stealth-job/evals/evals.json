@@ -12,6 +12,8 @@
     { "type": "should_trigger", "prompt": "turn what you just did in the browser into a script i can schedule" },
     { "type": "should_trigger", "prompt": "re-record the vendor login flow, the page changed" },
     { "type": "should_trigger", "prompt": "check my job file doesn't break the humanize rules" },
+    { "type": "should_trigger", "prompt": "diagnose why the invoices job failed - was it a bot wall or a selector?" },
+    { "type": "should_trigger", "prompt": "label last night's failed run: is the session dead or are we blocked?" },
 
     { "type": "should_not_trigger", "prompt": "install cloakbrowser on this machine" },
     { "type": "should_not_trigger", "prompt": "create a stealth identity for my reddit account" },
@@ -72,6 +74,16 @@
         "questions whether recording pays off for a job that runs rarely on a site that may churn between runs",
         "explains the trade being made, that steady per-run LLM cost is exchanged for spiky breakage cost at an awkward moment",
         "recommends recording frequent jobs and leaving rare ones to the agent, rather than recording everything by default"
+      ]
+    },
+    {
+      "type": "quality",
+      "prompt": "the vendor job failed and diagnosis.json says bot_challenge_or_block",
+      "expected_behavior": [
+        "does not re-run the job and does not touch its selectors",
+        "checks the identity instead: the canary with the egress check, the proxy binding, and hands the decision back to the user",
+        "treats the label as a triage hint and confirms it against failure.png or failure.html rather than acting on the label alone",
+        "does not rotate the proxy or re-baseline the identity as a reflex, since that creates the drift it is trying to avoid"
       ]
     }
   ]

@@ -4,7 +4,8 @@
 A job is an ordinary Python module committed at `<root>/jobs/<identity>/<name>.py`. It
 declares which identity it runs on, how to tell the session is still alive, and a `run()`
 that drives the page. The agent authors it once; every later run is this script executing
-that file — no DOM reading, no model call, no per-run cost.
+that file — no DOM reading, no model call, no per-run cost. A failed run leaves a
+bundle (`failure.json/.png/.html`); `pagestate.py --run <dir>` labels it afterwards.
 
     jobs/<identity>/<name>.py        the job          COMMITTED, reviewable, no secrets
     .stealth/<identity>/runs/...     run artefacts    GITIGNORED, pruned, secret-bearing
@@ -304,12 +305,26 @@ def run_job(identity: str, job: str, root: str, seed: int | None, keep_trace: bo
     started = time.time()
     ok, error, result = False, None, None
     print(f"STATUS job: {identity}/{job} sha={sha} seed={seed}")
+    last_status: int | None = None
     with open_identity(identity, root) as ctx:
         traced = False
         with contextlib.suppress(Exception):
             ctx.tracing.start(screenshots=True, snapshots=True)
             traced = True
         page = ctx.pages[0] if ctx.pages else ctx.new_page()
+        last_doc: dict[str, object] = {}  # HTTP status of the last main-document load
+
+        def _track(resp) -> None:
+            with contextlib.suppress(Exception):
+                if resp.request.is_navigation_request() and resp.frame == page.main_frame:
+                    last_doc.update(code=resp.status, url=resp.url)
+
+        def _status() -> int | None:
+            """The status only counts if it belongs to the page now showing (about:blank has none)."""
+            same = str(last_doc.get("url", "")).split("#")[0] == page.url.split("#")[0]
+            return last_doc.get("code") if same else None  # type: ignore[return-value]
+
+        page.on("response", _track)
         try:
             start_url = getattr(module, "START_URL", None)
             if start_url:
@@ -334,7 +349,17 @@ def run_job(identity: str, job: str, root: str, seed: int | None, keep_trace: bo
                 )
             with contextlib.suppress(Exception):
                 Path(os.path.join(run_dir, "url.txt")).write_text(page.url, encoding="utf-8")
+            with contextlib.suppress(Exception):  # what pagestate.py diagnoses, read-only
+                from pagestate import SNAPSHOT_NAME, snapshot
+
+                snap = snapshot(page)
+                snap["status"] = _status()
+                Path(os.path.join(run_dir, SNAPSHOT_NAME)).write_text(
+                    json.dumps(snap, indent=2), encoding="utf-8"
+                )
         finally:
+            with contextlib.suppress(Exception):
+                last_status = _status()
             if traced:
                 with contextlib.suppress(Exception):
                     ctx.tracing.stop(path=os.path.join(run_dir, "trace.zip"))
@@ -348,6 +373,7 @@ def run_job(identity: str, job: str, root: str, seed: int | None, keep_trace: bo
         "started": stamp,
         "duration_s": round(time.time() - started, 2),
         "error": error,
+        "last_status": last_status,
         "steps": log,
     }
     with open(os.path.join(run_dir, "manifest.json"), "w", encoding="utf-8") as fh:
@@ -368,6 +394,10 @@ def run_job(identity: str, job: str, root: str, seed: int | None, keep_trace: bo
         print(f"STATUS pruned: {pruned} old successful run(s)")
     if not ok:
         print(f"JOB-ERROR: {error}", file=sys.stderr)
+        with contextlib.suppress(Exception):
+            from pagestate import command_for
+
+            print(f"DIAGNOSE: {command_for(run_dir)}")
         print("RESULT: fail")
         return 1
     print("RESULT: ok")

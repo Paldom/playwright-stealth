@@ -57,7 +57,7 @@ explicitly with `/<skill-name>`.
 | [`playwright-stealth-setup`](skills/playwright-stealth-setup/) | Installs and verifies the CloakBrowser toolchain — pip package, patched Chromium binary, licence key, macOS unquarantine — and reports which build will actually launch. Once per machine. |
 | [`playwright-stealth-identity`](skills/playwright-stealth-identity/) | Creates one identity per account with its own pinned fingerprint seed, binding a proxy only if you actually need one. Takes defaults silently when you say so. Once per account. |
 | [`playwright-stealth`](skills/playwright-stealth/) | Runs a task in a headful, humanized session on an existing identity, so a hand-made login keeps working in later runs. Self-verifies against a fingerprint baseline. |
-| [`playwright-stealth-job`](skills/playwright-stealth-job/) | Records a browsing task as a committed Python job, then replays it with no model in the loop — lint-gated, seed-jittered, with a run manifest and failure bundle. |
+| [`playwright-stealth-job`](skills/playwright-stealth-job/) | Records a browsing task as a committed Python job, then replays it with no model in the loop — lint-gated, seed-jittered, with a run manifest and failure bundle. A failed run can be labelled afterwards — a suspected dead session, consent overlay, bot wall, site error, or plain content — offline, or with one opt-in TypeSafe Jev request. |
 
 They run in that order: install once, provision per account, then browse as often as you
 like, and promote anything repetitive into a job.

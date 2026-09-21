@@ -1,6 +1,6 @@
 ---
 name: playwright-stealth-job
-description: Records a browsing task as a committed Python job on a stealth identity, then replays it with no model in the loop — lint-gated, seed-jittered, with a run manifest. Use to make a browser flow repeatable or scheduled, replay or list the saved jobs, cut per-run LLM cost, or repair a broken job. Not for one-off browsing, creating an identity, or installing the toolchain.
+description: Records a browsing task as a committed Python job on a stealth identity, then replays it with no model in the loop — lint-gated, seed-jittered, with a run manifest. Use to make a browser flow repeatable or scheduled, replay or list the saved jobs, cut per-run LLM cost, or diagnose a failed run and repair the job. Not for one-off browsing, creating an identity, or installing the toolchain.
 license: MIT
 ---
 
@@ -68,9 +68,19 @@ recording everything by default.
    ```
    Report the run directory and the seed. Later runs need only this command.
 
-5. **On failure, repair one step.** Read `manifest.json`, `failure.png` and `failure.html`
-   from the run directory. Check the session first — expiry is the likeliest cause. Change
-   only what broke, then re-run to prove it.
+5. **On failure, label the page, then repair one step.** A failed run prints a
+   `DIAGNOSE:` command; it runs offline and is always safe:
+   ```bash
+   python3 "${CLAUDE_SKILL_DIR}/scripts/pagestate.py" --run <run-dir> --offline
+   ```
+   Offline signatures (HTTP status, a few unmistakable titles, visible challenge iframes)
+   catch the clear cases. For the rest, dropping `--offline` sends the failure page's
+   redacted title and text to TypeSafe Jev for one typed label — **ask the user first**;
+   a key in the environment is not permission. Either way `diagnosis.json` holds a label
+   and the first thing to check: a suspected dead session, consent overlay, bot challenge
+   or block (**do not re-run on a hunch**), site error, or content with no wall. It is a
+   triage hint, not a verdict — confirm it in `failure.png` and `failure.html` before
+   changing anything. Change only what broke, then re-run to prove it.
 
 Other commands: `--list` (jobs and their last run), `--seed <n>` (reproduce a past run's
 timing exactly), `--keep-trace`, `--self-test`.
@@ -109,12 +119,21 @@ timing exactly), `--keep-trace`, `--self-test`.
   doing it twice. Prefer read-only jobs; assert exactly-once on anything that submits,
   pays or deletes.
 - **Never edit the linter to make a job pass.** Every rule maps to a documented tell.
+- **`pagestate.py` is the only thing that ever calls a model, and only without
+  `--offline`.** Replay never calls it, so "no model in the loop" stays literally true. The
+  call sends the failure page's redacted title, at most 2,000 characters of its visible
+  text (URLs, emails and digit runs masked), its password-field count and its visible
+  iframe sources — never the page URL, cookies, field values or the key — and retries
+  once on a 429/529. Page text can still steer the label (a hidden "you are signed in"
+  note moved 13% of the probability in testing), which is why it is advisory: a label is
+  a reason to look, never a reason to act.
 
 ## References
 
 - [references/authoring.md](references/authoring.md) — compile-don't-record, selector
-  durability ranking, assertions, the house-rule table, the repair workflow, run-to-run
-  variance, and when not to record a job at all.
+  durability ranking, assertions, the house-rule table, the repair workflow with the
+  label-to-first-check table, run-to-run variance, and when not to record a job at all.
 - [references/secrets-and-artefacts.md](references/secrets-and-artefacts.md) — the
   committed/gitignored split, the secret mechanism, why jobs should not log in, run
-  artefacts, retention, and the traceability you get from git.
+  artefacts, what leaves the machine and when, retention, and the traceability you get
+  from git.

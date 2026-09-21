@@ -96,8 +96,26 @@ Breakage is normal and the workflow is designed around it. On failure the run di
 holds `failure.png`, `failure.html`, `url.txt`, `trace.zip` and a `manifest.json` naming
 the exact step and error.
 
-1. **Read the manifest first.** Distinguish a dead session (re-run the hand-login) from a
-   selector miss (re-author). Session expiry is the more likely cause; check it first.
+1. **Label the page first.** `pagestate.py --run <dir> --offline` writes `diagnosis.json`
+   and says where to start; drop `--offline` for the TypeSafe pass only when the user has
+   agreed to send the redacted excerpt. Session expiry is the more likely cause; check it
+   first.
+
+   | Label | First check |
+   | --- | --- |
+   | `login_or_mfa_wall` | Probably a dead session. Confirm in `failure.png`, re-run the hand-login (playwright-stealth step 3); the job is fine. |
+   | `consent_overlay` | Deep-link past the dialog, or add one declared dismiss step. Not a selector miss until the dialog is gone. |
+   | `bot_challenge_or_block` | **Do not re-run on a hunch.** Confirm in `failure.png`, then `canary.py --check-egress`, the proxy, then a human. Replaying into a wall is how an identity burns. |
+   | `error_or_rate_limited` | The site failed or throttled. Wait, re-run once, then stop. Leave the job alone. |
+   | `content_no_wall` | Proves neither a live session nor what moved. If `LOGGED_IN_WHEN` was found, suspect the failing locator and diff it against `failure.html`; if not, the marker itself may have moved. |
+   | `unclassified` | No signature matched and no confident label. Read `failure.png` and `failure.html`. |
+
+   Every label is a triage hint, never a verdict. The offline signatures match a few
+   unmistakable pages (an anchored title, a 403/429/5xx, a visible challenge iframe) and
+   can still be fooled by an article titled "Access Denied"; the Jev label is a
+   probability over page text that the page itself can influence. Neither is a reason to
+   rotate a proxy or re-baseline an identity by reflex — that creates the drift you are
+   trying to avoid.
 2. **Repair one step.** Hand the model the intent, the old selector and the failure-time
    DOM, and change only what broke. The rest of the job is still good.
 3. **Ship it as a diff.** The job is committed, so the repair is a reviewable commit and

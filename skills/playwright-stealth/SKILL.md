@@ -155,11 +155,9 @@ those databases go stale — a real London exit IP was observed setting the brow
   and no underlying `wheel` — a binary, checkable bot tell. Use `page.mouse.wheel(...)`.
 - **Coherence beats disguise.** Leave `identity.platform` empty: on a Mac the binary
   presents as macOS and that is correct. A Windows claim over Mac font metrics is a seam.
-- **`geoip = true` is not self-verifying.** It reads a GeoIP database, and the database
-  can be wrong — a real London exit IP has been observed setting the browser clock to
-  `America/Chicago`. After attaching any proxy, run `canary.py --check-egress` once: it
-  resolves the live exit IP and compares its timezone to the browser's. If they disagree,
-  set `network.timezone` and `network.locale` explicitly, which override geoip.
+- **`geoip = true` is not self-verifying.** After attaching any proxy, run
+  `canary.py --check-egress` once — see [Verifying a proxy](#verifying-a-proxy-someone-else-bound)
+  for the observed failure and the fix.
 - **The profile is credential material.** `user-data/` holds decryptable session cookies
   and saved passwords. Gitignored, `0700`, never copied between machines, never shared.
 - **The Chromium sandbox is off.** `--no-sandbox` is part of the wrapper's default stealth

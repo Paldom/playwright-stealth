@@ -4,7 +4,7 @@
   "groupings": [
     {
       "title": "Stealth browsing",
-      "description": "Log in by hand once, then let an agent reuse that session for weeks \u2014 a headful, humanized CloakBrowser identity whose fingerprint seed and cookies stay pinned across runs, with a canary that catches drift and recorded jobs that replay with no model in the loop.",
+      "description": "Log in by hand once, then let an agent reuse that session for weeks \u2014 a headful, humanized CloakBrowser identity whose fingerprint seed and cookies stay pinned across runs, with a canary that catches drift and recorded jobs that replay with no model in the loop and can label their own failures afterwards.",
       "skills": [
         "playwright-stealth-setup",
         "playwright-stealth-identity",

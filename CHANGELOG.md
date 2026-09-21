@@ -7,6 +7,31 @@ versioning: [SemVer](https://semver.org) on the plugin manifest
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-22
+
+### Added
+- **Failure diagnosis for recorded jobs.** A failed replay now captures `failure.json`
+  (title, URL, HTTP status of the page it shows, visible text, password-field count,
+  visible iframe sources) and prints a `DIAGNOSE:` command. `pagestate.py --run <dir>
+  --offline` labels the page from signatures alone; without `--offline`, and only when
+  `TYPESAFE_API_KEY` is set and the user agreed, one TypeSafe Jev request over the
+  redacted title and text labels the rest: a suspected dead session, consent overlay,
+  bot challenge or block, site error, or content with no wall. Every label is a triage
+  hint, not a verdict; replay itself still makes no model call. Scope chosen after an
+  `/advise-max` consultation (Fable 5.1 and GPT-6 Astra answered; Gemini, Grok and Kimi
+  failed on quota or setup): both rejected Jev as a navigation loop for one-off browsing
+  and as anything inside replay, and accepted it only as an opt-in, advisory,
+  post-failure label. A Codex review of the diff through `acpx` then found 13 issues —
+  unredacted titles and links, a redirect that would carry the key, an agent-run send,
+  invisible reCAPTCHA frames read as walls, a stale status — all fixed. Reasoning in
+  [docs/jev-rationale.md](docs/jev-rationale.md).
+- `manifest.json` records `last_status`, the HTTP status of the page showing when the run
+  ended, or null when that page had no document response (for example `about:blank`).
+
+### Changed
+- `playwright-stealth` gotchas: the geoip/exit-IP paragraph was stated twice; the bullet
+  now points at the "Verifying a proxy" section instead of repeating it.
+
 ## [0.3.0] - 2026-08-31
 
 ### Added
